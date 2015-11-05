@@ -1,6 +1,6 @@
 NodeConductor Zabbix
 ====================
 
-NodeConductor SugarCRM adds SugarCRM support to NodeConductor
+NodeConductor Zabbix adds Zabbix support to NodeConductor
 
 .. include:: docs/installation.rst

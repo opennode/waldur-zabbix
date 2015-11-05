@@ -1,8 +1,7 @@
-Welcome to NodeConductor SugarCRM plugin's documentation!
-=========================================================
+Welcome to NodeConductor Zabbix plugin's documentation!
+=======================================================
 
-SugarCRM service provides an interface to SugarCRM system.
-It creates separate VM for each SugarCRM installation via NodeConductor OpenStack endpoints.
+Zabbix service provides an interface to Zabbix monitoring system.
 
 Guide
 -----
@@ -23,7 +22,7 @@ API
 License
 -------
 
-NodeConductor SugarCRM plugin is open-source under Apache v2 license.
+NodeConductor Zabbix plugin is open-source under Apache v2 license.
 
 
 Indices and tables
