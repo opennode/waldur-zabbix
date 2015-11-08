@@ -61,7 +61,7 @@ class QuietSession(requests.Session):
 class ZabbixRealBackend(ZabbixBaseBackend):
     """ Zabbix backend methods """
 
-    DEFAULT_GROUP_NAME = 'nodeconductor'
+    DEFAULT_HOST_GROUP_NAME = 'nodeconductor'
     DEFAULT_TEMPLATES_NAMES = ('nodeconductor',)
     DEFAULT_INTERFACE_PARAMTERS = {
         'dns': '',
@@ -75,7 +75,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
     def __init__(self, settings):
         self.api = self._get_api(settings.backend_url, settings.username, settings.password)
         self.options = settings.options or {}
-        self.group_name = self.options.get('group_name', self.DEFAULT_GROUP_NAME)
+        self.host_group_name = self.options.get('host_group_name', self.DEFAULT_HOST_GROUP_NAME)
         self.templates_names = self.options.get('templates_names', self.DEFAULT_TEMPLATES_NAMES)
         self.interface_parameters = self.options.get('interface_parameters', self.DEFAULT_INTERFACE_PARAMTERS)
 
@@ -85,30 +85,33 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             self._get_template_id(name)
 
     def provision_host(self, host):
+        interface_parameters = host.interface_parameters or self.interface_parameters
+        host_group_name = host.host_group_name or self.host_group_name
+
         templates_ids = [self._get_template_id(name) for name in self.templates_names]
-        group_id, _ = self._get_or_create_group_id(self.group_name)
-        name = self._get_host_unique_name(host)
+        group_id, _ = self._get_or_create_group_id(host_group_name)
 
         zabbix_host_id, created = self._get_or_create_host_id(
-            host_name=name,
-            visible_name=host.name,
+            host_name=host.name,
+            visible_name=host.visible_name,
             group_id=group_id,
             templates_ids=templates_ids,
-            interface_parameters=self.interface_parameters
+            interface_parameters=interface_parameters,
         )
 
         if not created:
-            logger.warning('Host with name "%s" already exists', name)
+            logger.warning('Host with name "%s" already exists', host.name)
 
+        host.interface_parameters = interface_parameters
+        host.host_group_name = host_group_name
         host.backend_id = zabbix_host_id
         host.save()
 
     def destroy_host(self, host):
-        host_name = self._get_host_unique_name(host)
-        host_exists_before_deletion = self._delete_host_if_exists(host_name)
-        if not host_exists_before_deletion:
-            logger.warning('Host "%s" (zabbix host name: "%s") cannot be deleted - it does not exist in Zabbix',
-                           host.name, host_name)
+        try:
+            self.api.host.delete(host.backend_id)
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            raise ZabbixBackendError('Cannot create delete host with name "%s". Exception: %s' % (host.name, e))
 
     def _get_or_create_group_id(self, group_name):
         try:
@@ -154,20 +157,6 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
             raise ZabbixBackendError(
                 'Cannot get or create host with parameters: %s. Exception: %s' % (host_parameters, str(e)))
-
-    def _delete_host_if_exists(self, host_name):
-        """ Delete zabbix host by name.
-
-        Return True if host was deleted successfully, False if host with such name does not exist.
-        """
-        try:
-            hostid = self.api.host.get(filter={'host': host_name})[0]['hostid']
-            self.api.host.delete(hostid)
-        except (pyzabbix.ZabbixAPIException, RequestException) as e:
-            raise ZabbixBackendError('Cannot create delete host with name "%s". Exception: %s' % (host_name, e))
-        except IndexError:
-            return False
-        return True
 
     def _get_api(self, backend_url, username, password):
         unsafe_session = QuietSession()

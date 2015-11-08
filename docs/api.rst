@@ -18,10 +18,10 @@ Request parameters:
 
 The following rules for generation of the service settings are used:
 
- - backend_url - Zabbix API URL;
- - username - Zabbix user username (e.g. User);
- - password - Zabbix user password (e.g. Password);
- - group_name - Zabbix group name for registered hosts (default: "nodeconductor");
+ - backend_url - Zabbix API URL (e.g. http://example.com/zabbix/api_jsonrpc.php);
+ - username - Zabbix user username (e.g. admin);
+ - password - Zabbix user password (e.g. zabbix);
+ - host_group_name - Zabbix group name for registered hosts (default: "nodeconductor");
  - interface_parameters - default parameters for hosts interface. (default: {"dns": "", "ip": "0.0.0.0", "main": 1,
                           "port": "10050", "type": 1, "useip": 1});
  - templates_names - List of Zabbix hosts templates. (default: ["nodeconductor"]);
@@ -41,9 +41,9 @@ Example of a request:
     {
         "name": "My Zabbix"
         "customer": "http://example.com/api/customers/2aadad6a4b764661add14dfdda26b373/",
-        "backend_url": "http://example.com/",
-        "username": "User",
-        "password": "Password"
+        "backend_url": "http://example.com/zabbix/api_jsonrpc.php",
+        "username": "admin",
+        "password": "zabbix"
     }
 
 
@@ -71,7 +71,7 @@ To remove a link, issue DELETE to url of the corresponding connection as staff u
 
 Project-service connection list
 -------------------------------
-To get a list of connections between a project and an oracle service, run GET against
+To get a list of connections between a project and a zabbix service, run GET against
 **/api/zabbix-service-project-link/** as authenticated user. Note that a user can only see connections of a project
 where a user has a role.
 
@@ -85,6 +85,10 @@ parameters:
  - name - host name;
  - description - host description (optional);
  - link to the service-project-link object;
+ - visible_name - host visible name;
+ - interface_parameters - host interface parameters (optional, default value will be taken from service settings, if
+   not specified);
+ - host_group_name - host group name (optional, default value will be taken from service settings if not specified);
 
 
  Example of a valid request:
@@ -99,6 +103,7 @@ parameters:
 
     {
         "name": "test host",
+        "visible_name": "test host",
         "description": "sample description",
         "service_project_link": "http://example.com/api/zabbix-service-project-link/1/"
     }
@@ -121,13 +126,13 @@ Example rendering of the host object:
             "description": "",
             "start_time": null,
             "service": "http://example.com/api/zabbix/0923177a994742dd97257d004d3afae3/",
-            "service_name": "Oman Zabbix service",
+            "service_name": "Zabbix service",
             "service_uuid": "0923177a994742dd97257d004d3afae3",
             "project": "http://example.com/api/projects/873d6858eabb4ec6b232b32da81d752a/",
-            "project_name": "Oman Zabbix project",
+            "project_name": "Zabbix project",
             "project_uuid": "873d6858eabb4ec6b232b32da81d752a",
             "customer": "http://example.com/api/customers/01d40fb2ea154935915e46e83b73c7f4/",
-            "customer_name": "Oman Zabbix customer",
+            "customer_name": "Zabbix customer",
             "customer_native_name": "",
             "customer_abbreviation": "",
             "project_groups": [],

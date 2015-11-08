@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# NodeConductor SugarCRM documentation build configuration file, created by
+# NodeConductor Zabbix documentation build configuration file, created by
 # sphinx-quickstart on Wed Oct 28 13:22:26 2015.
 #
 # This file is execfile()d with the current directory set to its
@@ -43,7 +43,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'NodeConductor SugarCRM'
+project = u'NodeConductor Zabbix'
 copyright = u'2015, OpenNode'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -51,7 +51,7 @@ copyright = u'2015, OpenNode'
 # built documents.
 #
 # The short X.Y version.
-from nodeconductor_sugarcrm import __version__
+from nodeconductor_zabbix import __version__
 
 version = __version__
 # The full version, including alpha/beta/rc tags.
@@ -178,7 +178,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'nodeconductorsugarcrmdoc'
+htmlhelp_basename = 'nodeconductorzabbixdoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -198,7 +198,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'nodeconductorsugarcrm.tex', u'NodeConductor SugarCRM Documentation',
+  ('index', 'nodeconductorzabbix.tex', u'NodeConductor Zabbix Documentation',
    u'OpenNode', 'manual'),
 ]
 
@@ -228,7 +228,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'NodeConductor SugarCRM', u'NodeConductor SugarCRM Documentation',
+    ('index', 'NodeConductor Zabbix', u'NodeConductor Zabbix Documentation',
      [u'OpenNode'], 1)
 ]
 
@@ -242,8 +242,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'NodeConductorSugarCRM', u'NodeConductor SugarCRM Documentation',
-   u'OpenNode', 'NodeConductorSugarCRM', 'One line description of project.',
+  ('index', 'NodeConductorZabbix', u'NodeConductor Zabbix Documentation',
+   u'OpenNode', 'NodeConductorZabbix', 'One line description of project.',
    'Miscellaneous'),
 ]
 
