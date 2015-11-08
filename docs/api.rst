@@ -71,7 +71,7 @@ To remove a link, issue DELETE to url of the corresponding connection as staff u
 
 Project-service connection list
 -------------------------------
-To get a list of connections between a project and a zabbix service, run GET against
+To get a list of connections between a project and a Zabbix service, run GET against
 **/api/zabbix-service-project-link/** as authenticated user. Note that a user can only see connections of a project
 where a user has a role.
 
