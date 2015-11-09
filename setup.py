@@ -7,7 +7,7 @@ dev_requires = [
 ]
 
 install_requires = [
-    'nodeconductor>=0.78.0',
+    'nodeconductor>=0.79.0',
     'pyzabbix>=0.7.2',
 ]
 
