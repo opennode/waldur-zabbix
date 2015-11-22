@@ -10,5 +10,11 @@ class ZabbixConfig(AppConfig):
     def ready(self):
         ZabbixService = self.get_model('ZabbixService')
 
+        # structure
         from .backend import ZabbixBackend
         SupportedServices.register_backend(ZabbixService, ZabbixBackend)
+
+        # templates
+        from nodeconductor_templates import TemplatesRegistry
+        from nodeconductor_zabbix.templates import HostProvisionTemplateForm
+        TemplatesRegistry.register(HostProvisionTemplateForm)
