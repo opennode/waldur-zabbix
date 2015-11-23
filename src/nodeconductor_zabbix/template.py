@@ -1,8 +1,8 @@
 from django import forms
 from rest_framework import serializers
 
-from nodeconductor_templates.forms import TemplateForm
-from nodeconductor_templates.serializers import BaseTemplateSerializer
+from nodeconductor.template.forms import TemplateForm
+from nodeconductor.template.serializers import BaseTemplateSerializer
 from nodeconductor_zabbix import models
 
 

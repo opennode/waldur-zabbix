@@ -15,6 +15,6 @@ class ZabbixConfig(AppConfig):
         SupportedServices.register_backend(ZabbixService, ZabbixBackend)
 
         # templates
-        from nodeconductor_templates import TemplatesRegistry
-        from nodeconductor_zabbix.templates import HostProvisionTemplateForm
-        TemplatesRegistry.register(HostProvisionTemplateForm)
+        from nodeconductor.template import TemplateRegistry
+        from nodeconductor_zabbix.template import HostProvisionTemplateForm
+        TemplateRegistry.register(HostProvisionTemplateForm)
