@@ -111,7 +111,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         try:
             self.api.host.delete(host.backend_id)
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
-            raise ZabbixBackendError('Cannot create delete host with name "%s". Exception: %s' % (host.name, e))
+            raise ZabbixBackendError('Cannot delete host with name "%s". Exception: %s' % (host.name, e))
 
     def _get_or_create_group_id(self, group_name):
         try:
