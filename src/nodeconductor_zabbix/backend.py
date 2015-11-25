@@ -42,6 +42,13 @@ class ZabbixBaseBackend(ServiceBackend):
             host.uuid.hex,
         )
 
+    def update_visible_name(self, host):
+        new_visible_name = host.get_visible_name_from_scope(host.scope)
+        if new_visible_name != host.visible_name:
+            send_task('zabbix', 'update_visible_name')(
+                host.uuid.hex,
+            )
+
 
 class QuietSession(requests.Session):
     """Session class that suppresses warning about unsafe TLS sessions and clogging the logs.
@@ -112,6 +119,20 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             self.api.host.delete(host.backend_id)
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             raise ZabbixBackendError('Cannot delete host with name "%s". Exception: %s' % (host.name, e))
+
+    def update_host_visible_name(self, host):
+        """ Update visible name based on host scope """
+        host.visible_name = host.get_visible_name_from_scope(host.scope)
+        self._update_host(host.backend_id, name=host.visible_name)
+        host.save()
+
+    def _update_host(self, host_id, **kwargs):
+        try:
+            kwargs.update({'hostid': host_id})
+            self.api.host.update(kwargs)
+        except pyzabbix.ZabbixAPIException as e:
+            raise ZabbixBackendError('Cannot update host with id "%s". Update parameters: %s. Exception: %s' % (
+                                     host_id, kwargs, e))
 
     def _get_or_create_group_id(self, group_name):
         try:

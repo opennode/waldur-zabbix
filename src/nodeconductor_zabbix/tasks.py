@@ -27,6 +27,13 @@ def destroy(host_uuid):
     )
 
 
+@shared_task(name='nodeconductor.zabbix.update_visible_name')
+def update_visible_name(host_uuid):
+    host = Host.objects.get(uuid=host_uuid)
+    backend = host.get_backend()
+    backend.update_host_visible_name(host)
+
+
 @shared_task
 @transition(Host, 'begin_provisioning')
 @save_error_message
