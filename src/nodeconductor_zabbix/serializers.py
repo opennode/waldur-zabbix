@@ -1,8 +1,8 @@
 from rest_framework import serializers
 
-from nodeconductor.structure import serializers as structure_serializers
-from nodeconductor.structure import SupportedServices
 from . import models
+from nodeconductor.core.serializers import GenericRelatedField
+from nodeconductor.structure import SupportedServices, serializers as structure_serializers, models as structure_models
 
 
 class ServiceSerializer(structure_serializers.BaseServiceSerializer):
@@ -48,13 +48,26 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         queryset=models.ZabbixServiceProjectLink.objects.all(),
         write_only=True)
 
+    # visible name could be populated from scope, so we need to mark it as not required
+    visible_name = serializers.CharField(required=False)
+    scope = GenericRelatedField(related_models=structure_models.Resource.get_all_models(), required=False)
+
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.Host
         view_name = 'zabbix-hosts-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'visible_name', 'interface_parameters', 'host_group_name')
+            'visible_name', 'interface_parameters', 'host_group_name', 'scope')
+
+    def get_resource_fields(self):
+        return super(HostSerializer, self).get_resource_fields() + ['scope']
 
     def validate(self, attrs):
+        # initiate name and visible name from scope if it is defined and check that they are not empty
+        if 'scope' in attrs:
+            attrs['visible_name'] = models.Host.get_visible_name_from_scope(attrs['scope'])
+        if not attrs.get('visible_name'):
+            raise serializers.ValidationError('Visible name or scope should be defined.')
+        # model validation
         if self.instance is not None:
             for name, value in attrs.items():
                 setattr(self.instance, name, value)
