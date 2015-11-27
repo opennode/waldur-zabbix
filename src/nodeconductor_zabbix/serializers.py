@@ -7,7 +7,6 @@ from nodeconductor.structure import SupportedServices, serializers as structure_
 
 class ServiceSerializer(structure_serializers.BaseServiceSerializer):
 
-    SERVICE_TYPE = SupportedServices.Types.Zabbix
     SERVICE_ACCOUNT_FIELDS = {
         'backend_url': 'Zabbix API URL (e.g. http://example.com/zabbix/api_jsonrpc.php)',
         'username': 'Zabbix user username (e.g. admin)',
