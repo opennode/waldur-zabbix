@@ -9,13 +9,12 @@ from nodeconductor.structure import SupportedServices, models as structure_model
 class ZabbixConfig(AppConfig):
     name = 'nodeconductor_zabbix'
     verbose_name = "NodeConductor Zabbix"
+    service_name = 'Zabbix'
 
     def ready(self):
-        ZabbixService = self.get_model('ZabbixService')
-
         # structure
         from .backend import ZabbixBackend
-        SupportedServices.register_backend(ZabbixService, ZabbixBackend)
+        SupportedServices.register_backend(ZabbixBackend)
 
         # templates
         from nodeconductor.template import TemplateRegistry
