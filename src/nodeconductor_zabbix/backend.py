@@ -34,7 +34,11 @@ class ZabbixBaseBackend(ServiceBackend):
             host.uuid.hex,
         )
 
-    def destroy(self, host):
+    def destroy(self, host, force=False):
+        if force:
+            host.delete()
+            return
+
         # Skip stopping, because host can be deleted directly from state ONLINE
         host.state = structure_models.Resource.States.DELETION_SCHEDULED
         host.save()
