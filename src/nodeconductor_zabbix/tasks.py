@@ -2,7 +2,7 @@ import logging
 
 from celery import shared_task
 
-from nodeconductor.core.tasks import transition
+from nodeconductor.core.tasks import save_error_message, transition
 from .models import Host
 
 
@@ -27,8 +27,16 @@ def destroy(host_uuid):
     )
 
 
+@shared_task(name='nodeconductor.zabbix.update_visible_name')
+def update_visible_name(host_uuid):
+    host = Host.objects.get(uuid=host_uuid)
+    backend = host.get_backend()
+    backend.update_host_visible_name(host)
+
+
 @shared_task
 @transition(Host, 'begin_provisioning')
+@save_error_message
 def provision_host(host_uuid, transition_entity=None):
     host = transition_entity
     backend = host.get_backend()
@@ -37,6 +45,7 @@ def provision_host(host_uuid, transition_entity=None):
 
 @shared_task
 @transition(Host, 'begin_deleting')
+@save_error_message
 def destroy_host(host_uuid, transition_entity=None):
     host = transition_entity
     backend = host.get_backend()
