@@ -7,14 +7,14 @@ dev_requires = [
 ]
 
 install_requires = [
-    'nodeconductor>=0.78.0',
+    'nodeconductor>0.81.0',
     'pyzabbix>=0.7.2',
 ]
 
 
 setup(
     name='nodeconductor-zabbix',
-    version='0.1.0',
+    version='0.2.0',
     author='OpenNode Team',
     author_email='info@opennodecloud.com',
     url='http://nodeconductor.com',
@@ -39,6 +39,6 @@ setup(
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
         'Operating System :: OS Independent',
-        'License :: Other/Proprietary License',
+        'License :: OSI Approved :: Apache Software License',
     ],
 )
