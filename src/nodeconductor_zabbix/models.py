@@ -76,6 +76,3 @@ class Item(models.Model):
     name = models.CharField(max_length=64)
     template = models.ForeignKey(Template, related_name='items')
     backend_id = models.CharField(max_length=64)
-
-
-# TODO: connect host with templates on provisioning, create serializers and views for items and templates
