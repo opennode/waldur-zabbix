@@ -110,7 +110,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
             host = super(HostSerializer, self).create(validated_data)
             # get default templates from service settings if they are not defined
             if templates is None:
-                templates_names = host.service.settings.options.get('templates_names')
+                templates_names = host.service_project_link.service.settings.options.get('templates_names')
                 templates = models.Template.objects.filter(name__in=templates_names)
             for template in templates:
                 host.templates.add(template)
