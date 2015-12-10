@@ -1,5 +1,5 @@
 from nodeconductor.structure import views as structure_views
-from . import models, serializers
+from . import models, serializers, filters
 
 
 class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
@@ -15,6 +15,9 @@ class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkView
 class HostViewSet(structure_views.BaseResourceViewSet):
     queryset = models.Host.objects.all()
     serializer_class = serializers.HostSerializer
+    filter_backends = (
+        filters.HostScopeFilterBackend,
+    )
 
     def perform_provision(self, serializer):
         resource = serializer.save()
@@ -29,3 +32,9 @@ class HostViewSet(structure_views.BaseResourceViewSet):
             backend.destroy(resource)
         else:
             self.perform_destroy(resource)
+
+
+class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
+    queryset = models.Template.objects.all().select_related('items')
+    serializer_class = serializers.TemplateSerializer
+    lookup_field = 'uuid'

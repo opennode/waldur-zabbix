@@ -35,6 +35,7 @@ class Host(structure_models.Resource):
     visible_name = models.CharField(_('visible name'), max_length=VISIBLE_NAME_MAX_LENGTH)
     interface_parameters = JSONField(blank=True)
     host_group_name = models.CharField(_('host group name'), max_length=64, blank=True)
+    templates = models.ManyToManyField('Template', related_name='hosts')
 
     content_type = models.ForeignKey(ContentType, null=True)
     object_id = models.PositiveIntegerField(null=True)
@@ -44,7 +45,7 @@ class Host(structure_models.Resource):
 
     @classmethod
     def get_url_name(cls):
-        return 'zabbix-hosts'
+        return 'zabbix-host'
 
     def clean(self):
         # It is impossible to mark service and name unique together at DB level, because host is connected with service
@@ -65,3 +66,16 @@ class Host(structure_models.Resource):
 
 # Zabbix host name max length - 64
 Host._meta.get_field('name').max_length = 64
+
+
+class Template(structure_models.ServiceProperty):
+    pass
+
+
+class Item(models.Model):
+    name = models.CharField(max_length=64)
+    template = models.ForeignKey(Template, related_name='items')
+    backend_id = models.CharField(max_length=64)
+
+
+# TODO: connect host with templates on provisioning, create serializers and views for items and templates

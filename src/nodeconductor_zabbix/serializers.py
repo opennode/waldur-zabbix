@@ -1,8 +1,9 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from . import models
-from nodeconductor.core.serializers import GenericRelatedField
-from nodeconductor.structure import SupportedServices, serializers as structure_serializers, models as structure_models
+from nodeconductor.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
+from nodeconductor.structure import serializers as structure_serializers, models as structure_models
 
 
 class ServiceSerializer(structure_serializers.BaseServiceSerializer):
@@ -35,6 +36,28 @@ class ServiceProjectLinkSerializer(structure_serializers.BaseServiceProjectLinkS
         }
 
 
+class TemplateSerializer(structure_serializers.BasePropertySerializer):
+
+    items = serializers.SerializerMethodField()
+
+    class Meta(object):
+        model = models.Template
+        view_name = 'zabbix-template-detail'
+        fields = ('url', 'uuid', 'name', 'items')
+        extra_kwargs = {
+            'url': {'lookup_field': 'uuid'},
+        }
+
+    def get_items(self, template):
+        return template.items.all().values_list('name', flat=True)
+
+
+class NestedTemplateSerializer(TemplateSerializer, HyperlinkedRelatedModelSerializer):
+
+    class Meta(TemplateSerializer.Meta):
+        pass
+
+
 class HostSerializer(structure_serializers.BaseResourceSerializer):
     service = serializers.HyperlinkedRelatedField(
         source='service_project_link.service',
@@ -50,12 +73,14 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
     # visible name could be populated from scope, so we need to mark it as not required
     visible_name = serializers.CharField(required=False)
     scope = GenericRelatedField(related_models=structure_models.Resource.get_all_models(), required=False)
+    templates = NestedTemplateSerializer(
+        queryset=models.Template.objects.all().select_related('items'), many=True, required=False)
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.Host
-        view_name = 'zabbix-hosts-detail'
+        view_name = 'zabbix-host-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'visible_name', 'interface_parameters', 'host_group_name', 'scope')
+            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates')
 
     def get_resource_fields(self):
         return super(HostSerializer, self).get_resource_fields() + ['scope']
@@ -64,14 +89,30 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         # initiate name and visible name from scope if it is defined and check that they are not empty
         if 'scope' in attrs:
             attrs['visible_name'] = models.Host.get_visible_name_from_scope(attrs['scope'])
-        if not attrs.get('visible_name'):
+        if not attrs.get('visible_name') and self.instance is None:
             raise serializers.ValidationError('Visible name or scope should be defined.')
+        # forbid templates update
+        if self.instance is not None and 'templates' in attrs:
+            raise serializers.ValidationError('Its impossible to update host templates')
         # model validation
         if self.instance is not None:
             for name, value in attrs.items():
                 setattr(self.instance, name, value)
             self.instance.clean()
         else:
-            instance = models.Host(**attrs)
+            instance = models.Host(**{k: v for k, v in attrs.items() if k != 'templates'})
             instance.clean()
         return attrs
+
+    def create(self, validated_data):
+        templates = validated_data.pop('templates', None)
+        with transaction.atomic():
+            host = super(HostSerializer, self).create(validated_data)
+            # get default templates from service settings if they are not defined
+            if templates is None:
+                templates_names = host.service.settings.options.get('templates_names')
+                templates = models.Template.objects.filter(name__in=templates_names)
+            for template in templates:
+                host.templates.add(template)
+
+        return host

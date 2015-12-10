@@ -12,6 +12,7 @@ class HostProvisionTemplateForm(TemplateForm):
     name = forms.CharField(label='Name', required=False)
     visible_name = forms.CharField(label='Visible name', required=False)
     host_group_name = forms.CharField(label='Host group name', required=False)
+    scope = forms.CharField(label='Host scope', required=False)
 
     class Meta(TemplateForm.Meta):
         fields = TemplateForm.Meta.fields + ('name', 'visible_name', 'host_group_name')
@@ -26,6 +27,7 @@ class HostProvisionTemplateForm(TemplateForm):
         name = serializers.CharField(required=False)
         visible_name = serializers.CharField(required=False)
         host_group_name = serializers.CharField(required=False)
+        scope = serializers.CharField(required=False)
 
     @classmethod
     def get_serializer_class(cls):
