@@ -55,10 +55,4 @@ class Migration(migrations.Migration):
             field=models.ManyToManyField(related_name='hosts', to='nodeconductor_zabbix.Template'),
             preserve_default=True,
         ),
-        migrations.AlterField(
-            model_name='host',
-            name='tags',
-            field=taggit.managers.TaggableManager(to='taggit.Tag', through='taggit.TaggedItem', blank=True, help_text='A comma-separated list of tags.', verbose_name='Tags'),
-            preserve_default=True,
-        ),
     ]

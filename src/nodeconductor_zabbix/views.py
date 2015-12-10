@@ -12,7 +12,7 @@ class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkView
     serializer_class = serializers.ServiceProjectLinkSerializer
 
 
-class HostViewSet(structure_views.BaseResourceViewSet):
+class HostViewSet(structure_views.BaseOnlineResourceViewSet):
     queryset = models.Host.objects.all()
     serializer_class = serializers.HostSerializer
     filter_backends = (
@@ -23,15 +23,6 @@ class HostViewSet(structure_views.BaseResourceViewSet):
         resource = serializer.save()
         backend = resource.get_backend()
         backend.provision(resource)
-
-    # User can only create and delete Hosts. He cannot stop them.
-    @structure_views.safe_operation(valid_state=models.Host.States.ONLINE)
-    def destroy(self, request, resource, uuid=None):
-        if resource.backend_id:
-            backend = resource.get_backend()
-            backend.destroy(resource)
-        else:
-            self.perform_destroy(resource)
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):

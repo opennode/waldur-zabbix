@@ -1,0 +1,19 @@
+language: python
+python:
+- '2.7'
+before_install:
+- sudo apt-get update -qq
+- sudo apt-get install gcc libffi-dev libldap2-dev libsasl2-dev libssl-dev python-dev
+install:
+- python setup.py install
+script:
+- python setup.py test
+deploy:
+  provider: pypi
+  user: opennode
+  distributions: "sdist bdist_wheel"
+  password:
+    secure: FxJwZ7PL+P53vA17j0rw5PbhC7dSlaU+/jFdURsn+N7gdA1be2qTC+YvfZcAwiatus4e8iG35piR4l/Y1xYuBRxueEtpuB1tUdYtkrgbK4sutel7J4DJFEDz/+pp2Oxy+jL6lBHwLX1g1XPQQHbPrBfctP9Cv8rkCC4Sgibnhl4x1MMjJh7DYb7R0H+n3ZLvMa+QtCCo1j7lZqSFm9S5buSSSuxfHdxKHOqF9cqL7ExbOb7OaChonO3DDKUSXNIrpoZgC6cuZJe6uaIwtrs5dz/tCVluVnuvrcjuvfxSoWHuK/Dr2gzVqTsDpD3a3HhE4i641NE9cW6HmaPuqSUQBF5S795afM9SuakvyijhzjKeCRNsdUQU8l8sHf2zvUj+HKn/fR6LE56VHi3xDxztMZapoNI7/mZ4WzZenpqRlF2P15f+0NF4wJYTmGQ9wZ+PMo7OBQfZDYj2aBbYy0i9QmBgB2y2RqvhUecNTi/llTn6SktIcYuxHYFAEQP2dTVVfHLv0rLVM7H4CMqBtevtkczl5lG/U6FjFRwJue2JCGTahmtBNpp10cYkjgP/bpR+naUc70ULm7IdxQBoPfeEm4vew8CC9dsRxjStohOlqk+tdBJupyfsuHWpN8XXWYW0zdyUzsxN60CEJfPIju753VQF6oDOgtluDIEmFKtw/w0=
+  on:
+    tags: true
+    repo: opennode/nodeconductor-zabbix
