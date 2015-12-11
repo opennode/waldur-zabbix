@@ -69,7 +69,9 @@ Host._meta.get_field('name').max_length = 64
 
 
 class Template(structure_models.ServiceProperty):
-    pass
+    @classmethod
+    def get_url_name(cls):
+        return 'zabbix-template'
 
 
 class Item(models.Model):
