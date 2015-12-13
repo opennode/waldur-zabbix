@@ -146,7 +146,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         host.save()
 
     def pull_templates(self):
-        """ Update existing nc templates and their items """
+        """ Update existing NodeConductor templates and their items """
         logger.debug('About to pull zabbix templates from backend.')
         try:
             zabbix_templates = self.api.template.get(output=['name', 'templateid'])
@@ -165,9 +165,9 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         except pyzabbix.ZabbixAPIException as e:
             raise ZabbixBackendError('Cannot pull templates. Exception: %s' % e)
         else:
-            logger.info('Successfully pulled zabbix templates.')
+            logger.info('Successfully pulled Zabbix templates.')
 
-        logger.debug('About to pull zabbix items for all templates.')
+        logger.debug('About to pull Zabbix items for all templates.')
         errors = []
         for template in models.Template.objects.all():
             try:
@@ -178,15 +178,13 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         if errors:
             raise ZabbixBackendError('Cannot pull template items.')
         else:
-            logger.info('Successfully pulled zabbix items.')
+            logger.info('Successfully pulled Zabbix items.')
 
     def pull_items(self, template):
-        """ Update existing nc items based on zabbix items """
-        logger.debug('About to pull zabbix items for template %s', template.name)
+        """ Update existing NodeConductor items from Zabbix templates """
+        logger.debug('About to pull Zabbix items for template %s', template.name)
         try:
-            print 'template.backend_id', template.backend_id
             zabbix_items = self.api.item.get(output=['itemid', 'key_'], templateids=template.backend_id)
-            print 'zabbix_items', zabbix_items
             zabbix_items_ids = set([i['itemid'] for i in zabbix_items])
             # Delete stale template items
             template.items.exclude(backend_id__in=zabbix_items_ids).delete()
@@ -202,7 +200,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         except pyzabbix.ZabbixAPIException as e:
             raise ZabbixBackendError('Cannot pull template items for template %s. Exception: %s' % (template.name, e))
         else:
-            logger.debug('Successfully pulled zabbix items for template %s.', template.name)
+            logger.debug('Successfully pulled Zabbix items for template %s.', template.name)
 
     def _update_host(self, host_id, **kwargs):
         try:
@@ -234,7 +232,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         return host.uuid.hex
 
     def _get_or_create_host_id(self, host_name, visible_name, group_id, templates_ids, interface_parameters):
-        """ Create zabbix host with given parameters.
+        """ Create Zabbix host with given parameters.
 
         Return (<host>, <is_created>) tuple as result.
         """
@@ -266,5 +264,6 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         return api
 
 
+# TODO: remove dummy backend
 class ZabbixDummyBackend(ZabbixBaseBackend):
     pass
