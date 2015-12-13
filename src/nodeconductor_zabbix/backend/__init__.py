@@ -96,12 +96,17 @@ class ZabbixRealBackend(ZabbixBaseBackend):
     }
 
     def __init__(self, settings):
-        self.api = self._get_api(settings.backend_url, settings.username, settings.password)
         self.settings = settings
         self.options = settings.options or {}
         self.host_group_name = self.options.get('host_group_name', self.DEFAULT_HOST_GROUP_NAME)
         self.templates_names = self.options.get('templates_names', self.DEFAULT_TEMPLATES_NAMES)
         self.interface_parameters = self.options.get('interface_parameters', self.DEFAULT_INTERFACE_PARAMTERS)
+
+    @property
+    def api(self):
+        if not hasattr(self, '_api'):
+            self.api = self._get_api(self.settings.backend_url, self.settings.username, self.settings.password)
+        return self._api
 
     def sync(self):
         self._get_or_create_group_id(self.host_group_name)
@@ -109,6 +114,8 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         for name in self.templates_names:
             if not models.Template.objects.filter(name=name).exists():
                 raise ZabbixBackendError('Cannot find template with name "%s".' % name)
+        if 'interface_parameters' in self.options and self.options['interface_parameters']:
+            raise ZabbixBackendError('Interface parameters should not be empty.')
 
     def provision_host(self, host):
         interface_parameters = host.interface_parameters or self.interface_parameters
