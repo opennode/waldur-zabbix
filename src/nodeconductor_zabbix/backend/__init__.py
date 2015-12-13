@@ -7,7 +7,7 @@ from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
 
 from nodeconductor.core.tasks import send_task
-from nodeconductor.structure import ServiceBackend, ServiceBackendError, models as structure_models
+from nodeconductor.structure import ServiceBackend, ServiceBackendError
 from ..import models
 
 
@@ -151,9 +151,9 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         try:
             zabbix_templates = self.api.template.get(output=['name', 'templateid'])
             zabbix_templates_ids = set([t['templateid'] for t in zabbix_templates])
-            # Delete templates that exists in zabbix
+            # Delete stale templates
             models.Template.objects.exclude(backend_id__in=zabbix_templates_ids).delete()
-            # Update or create zabbix templates:
+            # Update or create zabbix templates
             for zabbix_template in zabbix_templates:
                 nc_template, created = models.Template.objects.get_or_create(
                     backend_id=zabbix_template['templateid'],
@@ -188,9 +188,9 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             zabbix_items = self.api.item.get(output=['itemid', 'key_'], templateids=template.backend_id)
             print 'zabbix_items', zabbix_items
             zabbix_items_ids = set([i['itemid'] for i in zabbix_items])
-            # Delete items that exists in zabbix
+            # Delete stale template items
             template.items.exclude(backend_id__in=zabbix_items_ids).delete()
-            # Update or create zabbix items:
+            # Update or create zabbix items
             for zabbix_item in zabbix_items:
                 defaults = {'name': zabbix_item['key_']}
                 nc_item, created = template.items.get_or_create(
