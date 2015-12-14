@@ -83,12 +83,14 @@ staff privilege (is_staff=True). To create a host, client must issue POST reques
 parameters:
 
  - name - host name;
+ - service_project_link - url of service-project-link;
+ - visible_name - host visible name (optional if scope is defined);
+ - scope - optional url of related object, for example of OpenStack instance;
  - description - host description (optional);
- - link to the service-project-link object;
- - visible_name - host visible name;
  - interface_parameters - host interface parameters (optional, default value will be taken from service settings, if
    not specified);
  - host_group_name - host group name (optional, default value will be taken from service settings if not specified);
+ - templates - optional list of template urls.
 
 
  Example of a valid request:
@@ -105,7 +107,12 @@ parameters:
         "name": "test host",
         "visible_name": "test host",
         "description": "sample description",
-        "service_project_link": "http://example.com/api/zabbix-service-project-link/1/"
+        "service_project_link": "http://example.com/api/zabbix-service-project-link/1/",
+        "templates": [
+            {
+                "url": "http://example.com/api/zabbix-templates/99771937d38d41ceba3352b99e01b00b/"
+            }
+        ]
     }
 
 
