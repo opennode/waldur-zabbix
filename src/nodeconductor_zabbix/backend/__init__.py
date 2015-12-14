@@ -105,7 +105,9 @@ class ZabbixRealBackend(ZabbixBaseBackend):
     @property
     def api(self):
         if not hasattr(self, '_api'):
-            self.api = self._get_api(self.settings.backend_url, self.settings.username, self.settings.password)
+            self._api = self._get_api(self.settings.backend_url,
+                                      self.settings.username,
+                                      self.settings.password)
         return self._api
 
     def sync(self):
