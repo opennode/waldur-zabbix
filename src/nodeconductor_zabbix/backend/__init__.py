@@ -85,7 +85,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
     """ Zabbix backend methods """
 
     DEFAULT_HOST_GROUP_NAME = 'nodeconductor'
-    DEFAULT_TEMPLATES_NAMES = ('nodeconductor',)
+    DEFAULT_TEMPLATES_NAMES = ('NodeConductor',)
     DEFAULT_INTERFACE_PARAMTERS = {
         'dns': '',
         'ip': '0.0.0.0',

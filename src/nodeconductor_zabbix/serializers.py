@@ -1,7 +1,10 @@
+import json
+
 from django.db import transaction
 from rest_framework import serializers
 
 from . import models, backend
+from nodeconductor.core.fields import JsonField
 from nodeconductor.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
 from nodeconductor.structure import serializers as structure_serializers, models as structure_models
 
@@ -18,12 +21,32 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
         'interface_parameters': 'Default parameters for hosts interface (will be used if interface is not specified in '
                                 'host). (default: {"dns": "", "ip": "0.0.0.0", "main": 1, "port": "10050", "type": 1, '
                                 '"useip": 1})',
-        'templates_names': 'List of Zabbix hosts templates. (default: ["nodeconductor"])',
+        'templates_names': 'List of Zabbix hosts templates. (default: ["NodeConductor"])',
     }
 
     class Meta(structure_serializers.BaseServiceSerializer.Meta):
         model = models.ZabbixService
         view_name = 'zabbix-detail'
+
+    def get_fields(self):
+        fields = super(ServiceSerializer, self).get_fields()
+        fields['host_group_name'].initial = backend.ZabbixRealBackend.DEFAULT_HOST_GROUP_NAME
+        fields['templates_names'] = JsonField(
+            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_TEMPLATES_NAMES),
+            help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['templates_names'],
+            required=True,
+            write_only=True,
+        )
+        fields['interface_parameters'] = JsonField(
+            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_INTERFACE_PARAMTERS),
+            help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['interface_parameters'],
+            required=True,
+            write_only=True,
+        )
+        fields['backend_url'].required = True
+        fields['username'].required = True
+        fields['password'].required = True
+        return fields
 
 
 class ServiceProjectLinkSerializer(structure_serializers.BaseServiceProjectLinkSerializer):
