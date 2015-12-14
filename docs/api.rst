@@ -24,7 +24,7 @@ The following rules for generation of the service settings are used:
  - host_group_name - Zabbix group name for registered hosts (default: "nodeconductor");
  - interface_parameters - default parameters for hosts interface. (default: {"dns": "", "ip": "0.0.0.0", "main": 1,
                           "port": "10050", "type": 1, "useip": 1});
- - templates_names - List of Zabbix hosts templates. (default: ["nodeconductor"]);
+ - templates_names - List of Zabbix hosts templates. (default: ["NodeConductor"]);
 
 
 Example of a request:
