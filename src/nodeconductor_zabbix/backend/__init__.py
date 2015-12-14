@@ -7,10 +7,22 @@ from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
 
 from nodeconductor.core.tasks import send_task
-from nodeconductor.structure import ServiceBackend, ServiceBackendError, models as structure_models
+from nodeconductor.structure import ServiceBackend, ServiceBackendError
+from ..import models
 
 
 logger = logging.getLogger(__name__)
+
+
+class ZabbixLogsFilter(logging.Filter):
+    def filter(self, record):
+        # Mute useless Zabbix log concerning JSON-RPC server endpoint.
+        if record.getMessage().startswith('JSON-RPC Server Endpoint'):
+            return False
+
+        return super(ZabbixLogsFilter, self).filter(record)
+
+pyzabbix.logger.addFilter(ZabbixLogsFilter())
 
 
 class ZabbixBackendError(ServiceBackendError):
@@ -40,7 +52,7 @@ class ZabbixBaseBackend(ServiceBackend):
             return
 
         # Skip stopping, because host can be deleted directly from state ONLINE
-        host.state = structure_models.Resource.States.DELETION_SCHEDULED
+        host.schedule_deletion()
         host.save()
         send_task('zabbix', 'destroy')(
             host.uuid.hex,
@@ -73,7 +85,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
     """ Zabbix backend methods """
 
     DEFAULT_HOST_GROUP_NAME = 'nodeconductor'
-    DEFAULT_TEMPLATES_NAMES = ('nodeconductor',)
+    DEFAULT_TEMPLATES_NAMES = ('NodeConductor',)
     DEFAULT_INTERFACE_PARAMTERS = {
         'dns': '',
         'ip': '0.0.0.0',
@@ -84,22 +96,34 @@ class ZabbixRealBackend(ZabbixBaseBackend):
     }
 
     def __init__(self, settings):
-        self.api = self._get_api(settings.backend_url, settings.username, settings.password)
+        self.settings = settings
         self.options = settings.options or {}
         self.host_group_name = self.options.get('host_group_name', self.DEFAULT_HOST_GROUP_NAME)
         self.templates_names = self.options.get('templates_names', self.DEFAULT_TEMPLATES_NAMES)
         self.interface_parameters = self.options.get('interface_parameters', self.DEFAULT_INTERFACE_PARAMTERS)
 
+    @property
+    def api(self):
+        if not hasattr(self, '_api'):
+            self._api = self._get_api(self.settings.backend_url,
+                                      self.settings.username,
+                                      self.settings.password)
+        return self._api
+
     def sync(self):
-        self._get_or_create_group_id(self.group_name)
+        self._get_or_create_group_id(self.host_group_name)
+        self.pull_templates()
         for name in self.templates_names:
-            self._get_template_id(name)
+            if not models.Template.objects.filter(name=name).exists():
+                raise ZabbixBackendError('Cannot find template with name "%s".' % name)
+        if 'interface_parameters' in self.options and self.options['interface_parameters']:
+            raise ZabbixBackendError('Interface parameters should not be empty.')
 
     def provision_host(self, host):
         interface_parameters = host.interface_parameters or self.interface_parameters
         host_group_name = host.host_group_name or self.host_group_name
 
-        templates_ids = [self._get_template_id(name) for name in self.templates_names]
+        templates_ids = [t.backend_id for t in host.templates.all()]
         group_id, _ = self._get_or_create_group_id(host_group_name)
 
         zabbix_host_id, created = self._get_or_create_host_id(
@@ -129,6 +153,63 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         host.visible_name = host.get_visible_name_from_scope(host.scope)
         self._update_host(host.backend_id, name=host.visible_name)
         host.save()
+
+    def pull_templates(self):
+        """ Update existing NodeConductor templates and their items """
+        logger.debug('About to pull zabbix templates from backend.')
+        try:
+            zabbix_templates = self.api.template.get(output=['name', 'templateid'])
+            zabbix_templates_ids = set([t['templateid'] for t in zabbix_templates])
+            # Delete stale templates
+            models.Template.objects.exclude(backend_id__in=zabbix_templates_ids).delete()
+            # Update or create zabbix templates
+            for zabbix_template in zabbix_templates:
+                nc_template, created = models.Template.objects.get_or_create(
+                    backend_id=zabbix_template['templateid'],
+                    settings=self.settings,
+                    defaults={'name': zabbix_template['name']})
+                if not created and nc_template.name != zabbix_template['name']:
+                    nc_template.name = zabbix_template['name']
+                    nc_template.save()
+        except pyzabbix.ZabbixAPIException as e:
+            raise ZabbixBackendError('Cannot pull templates. Exception: %s' % e)
+        else:
+            logger.info('Successfully pulled Zabbix templates.')
+
+        logger.debug('About to pull Zabbix items for all templates.')
+        errors = []
+        for template in models.Template.objects.all():
+            try:
+                self.pull_items(template)
+            except ZabbixBackendError as e:
+                logger.error(str(e))
+                errors.append(e)
+        if errors:
+            raise ZabbixBackendError('Cannot pull template items.')
+        else:
+            logger.info('Successfully pulled Zabbix items.')
+
+    def pull_items(self, template):
+        """ Update existing NodeConductor items from Zabbix templates """
+        logger.debug('About to pull Zabbix items for template %s', template.name)
+        try:
+            zabbix_items = self.api.item.get(output=['itemid', 'key_'], templateids=template.backend_id)
+            zabbix_items_ids = set([i['itemid'] for i in zabbix_items])
+            # Delete stale template items
+            template.items.exclude(backend_id__in=zabbix_items_ids).delete()
+            # Update or create zabbix items
+            for zabbix_item in zabbix_items:
+                defaults = {'name': zabbix_item['key_']}
+                nc_item, created = template.items.get_or_create(
+                    backend_id=zabbix_item['itemid'], defaults=defaults)
+                if not created and (nc_item.name != zabbix_item['key_'] or nc_item.template != template):
+                    nc_item.name = zabbix_item['name']
+                    nc_item.template = template
+                    nc_item.save()
+        except pyzabbix.ZabbixAPIException as e:
+            raise ZabbixBackendError('Cannot pull template items for template %s. Exception: %s' % (template.name, e))
+        else:
+            logger.debug('Successfully pulled Zabbix items for template %s.', template.name)
 
     def _update_host(self, host_id, **kwargs):
         try:
@@ -160,7 +241,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         return host.uuid.hex
 
     def _get_or_create_host_id(self, host_name, visible_name, group_id, templates_ids, interface_parameters):
-        """ Create zabbix host with given parameters.
+        """ Create Zabbix host with given parameters.
 
         Return (<host>, <is_created>) tuple as result.
         """
@@ -192,5 +273,6 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         return api
 
 
+# TODO: remove dummy backend
 class ZabbixDummyBackend(ZabbixBaseBackend):
     pass

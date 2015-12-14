@@ -22,9 +22,8 @@ The following rules for generation of the service settings are used:
  - username - Zabbix user username (e.g. admin);
  - password - Zabbix user password (e.g. zabbix);
  - host_group_name - Zabbix group name for registered hosts (default: "nodeconductor");
- - interface_parameters - default parameters for hosts interface. (default: {"dns": "", "ip": "0.0.0.0", "main": 1,
-                          "port": "10050", "type": 1, "useip": 1});
- - templates_names - List of Zabbix hosts templates. (default: ["nodeconductor"]);
+ - interface_parameters - default parameters for hosts interface. (default: {"dns": "", "ip": "0.0.0.0", "main": 1, "port": "10050", "type": 1, "useip": 1});
+ - templates_names - List of Zabbix hosts templates. (default: ["NodeConductor"]);
 
 
 Example of a request:
@@ -83,15 +82,17 @@ staff privilege (is_staff=True). To create a host, client must issue POST reques
 parameters:
 
  - name - host name;
+ - service_project_link - url of service-project-link;
+ - visible_name - host visible name (optional if scope is defined);
+ - scope - optional url of related object, for example of OpenStack instance;
  - description - host description (optional);
- - link to the service-project-link object;
- - visible_name - host visible name;
  - interface_parameters - host interface parameters (optional, default value will be taken from service settings, if
    not specified);
  - host_group_name - host group name (optional, default value will be taken from service settings if not specified);
+ - templates - list of template urls (optional, default value will be taken from service settings if not specified).
 
 
- Example of a valid request:
+Example of a valid request:
 
 .. code-block:: http
 
@@ -105,7 +106,12 @@ parameters:
         "name": "test host",
         "visible_name": "test host",
         "description": "sample description",
-        "service_project_link": "http://example.com/api/zabbix-service-project-link/1/"
+        "service_project_link": "http://example.com/api/zabbix-service-project-link/1/",
+        "templates": [
+            {
+                "url": "http://example.com/api/zabbix-templates/99771937d38d41ceba3352b99e01b00b/"
+            }
+        ]
     }
 
 

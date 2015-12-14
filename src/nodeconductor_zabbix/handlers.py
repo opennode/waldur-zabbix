@@ -10,5 +10,8 @@ def update_hosts_visible_name_on_scope_name_change(sender, instance, **kwargs):
 
 def delete_hosts_on_scope_deletion(sender, instance, **kwargs):
     for host in Host.objects.filter(scope=instance):
-        backend = host.get_backend()
-        backend.destroy(host)
+        if host.backend_id:
+            backend = host.get_backend()
+            backend.destroy(host)
+        else:
+            host.delete()
