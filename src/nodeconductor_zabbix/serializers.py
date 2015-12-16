@@ -146,7 +146,10 @@ class StatsSerializer(serializers.Serializer):
     segments_count = serializers.IntegerField(min_value=1)
     start_timestamp = serializers.IntegerField(min_value=0)
     end_timestamp = serializers.IntegerField(min_value=0)
-    item = serializers.CharField()
+    item = serializers.ListField(
+        child=serializers.CharField(),
+        required=True
+    )
 
     def validate(self, attrs):
         if attrs['start_timestamp'] >= attrs['end_timestamp']:
@@ -154,17 +157,34 @@ class StatsSerializer(serializers.Serializer):
         return attrs
 
     def get_stats(self, host):
+        self.check_host(host)
+        self.check_items(host)
+
+        stats = []
+        for item in self.data['item']:
+            for row in self.get_item_stats(host, item):
+                row['item'] = item
+                stats.append(row)
+
+        return stats
+
+    def get_item_stats(self, host, item):
+        backend = host.get_backend()
+        return backend.get_item_stats(host.backend_id,
+                                      item,
+                                      self.data['start_timestamp'],
+                                      self.data['end_timestamp'],
+                                      self.data['segments_count'])
+
+    def check_host(self, host):
         if not host.backend_id or host.state in (models.Host.States.PROVISIONING_SCHEDULED,
                                                  models.Host.States.PROVISIONING):
             raise serializers.ValidationError('Host is not provisioned')
 
-        item_key = self.data['item']
-        if not models.Item.objects.filter(template__hosts=host, name=item_key).exists():
-            raise serializers.ValidationError({'item': 'Item is not found'})
-
-        backend = host.get_backend()
-        return backend.get_item_stats(host.backend_id,
-                                      item_key,
-                                      self.data['start_timestamp'],
-                                      self.data['end_timestamp'],
-                                      self.data['segments_count'])
+    def check_items(self, host):
+        items = models.Item.objects.filter(template__hosts=host)
+        valid_items = set(items.values_list('name', flat=True))
+        invalid_items = set(self.data['item']) - valid_items
+        if invalid_items:
+            message = 'Invalid items: {}'.format(', '.join(invalid_items))
+            raise serializers.ValidationError({'item': message})

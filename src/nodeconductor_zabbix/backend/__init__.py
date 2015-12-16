@@ -19,7 +19,6 @@ from ..import models
 logger = logging.getLogger(__name__)
 
 
-
 class ZabbixLogsFilter(logging.Filter):
     def filter(self, record):
         # Mute useless Zabbix log concerning JSON-RPC server endpoint.

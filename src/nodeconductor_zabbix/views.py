@@ -36,18 +36,17 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
 
         hour = 60 * 60
         now = time.time()
-        data = {
+        mapped = {
             'start_timestamp': request.query_params.get('from', int(now - hour)),
             'end_timestamp': request.query_params.get('to', int(now)),
             'segments_count': request.query_params.get('datapoints', 6),
-            'item': request.query_params.get('item')
+            'item': request.query_params.getlist('item')
         }
 
-        serializer = serializers.StatsSerializer(data=data)
+        serializer = serializers.StatsSerializer(data={k: v for k, v in mapped.items() if v})
         serializer.is_valid(raise_exception=True)
 
-        stats = serializer.get_stats(host)
-        return Response(stats, status=status.HTTP_200_OK)
+        return Response(serializer.get_stats(host), status=status.HTTP_200_OK)
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):

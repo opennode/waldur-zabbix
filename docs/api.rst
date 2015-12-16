@@ -207,7 +207,10 @@ Available request parameters:
 - ?to=timestamp (default: now, example: 1415912625)
 - ?datapoints=how many data points have to be in answer(default: 6)
 
-Response is list of datapoint, each of which is dictionary with following fields: 'from', 'to', 'value'. Datapoints are sorted in descending time order. Values are converted from bytes to megabytes.
+Response is list of datapoint, each of which is dictionary with following fields:
+- 'from' and 'to' - timestamps; datapoints are sorted in descending time order;
+- 'value' - values are converted from bytes to megabytes, if possible;
+- 'item' - name of host template item.
 
 Example response:
 
@@ -217,31 +220,37 @@ Example response:
         {
             "to": 1443078000,
             "from": 1442849400,
-            "value": 50.3574
+            "value": 50.3574,
+            "item": "openstack.instance.cpu_util"
         },
         {
             "to": 1442849400,
             "from": 1442620800,
-            "value": 40.3353
+            "value": 40.3353,
+            "item": "openstack.instance.cpu_util"
         },
         {
             "to": 1442620800,
             "from": 1442392200,
-            "value": 30.3426
+            "value": 30.3426,
+            "item": "openstack.instance.cpu_util"
         },
         {
             "to": 1442392200,
             "from": 1442163600,
-            "value": 20.3725
+            "value": 20.3725,
+            "item": "openstack.instance.cpu_util"
         },
         {
             "to": 1442163600,
             "from": 1441935000,
-            "value": 10.2583
+            "value": 10.2583,
+            "item": "openstack.instance.cpu_util"
         },
         {
             "to": 1441935000,
             "from": 1441706400,
-            "value": 0.1393
+            "value": 0.1393,
+            "item": "openstack.instance.cpu_util"
         }
     ]
