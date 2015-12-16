@@ -140,3 +140,31 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
                 host.templates.add(template)
 
         return host
+
+
+class StatsSerializer(serializers.Serializer):
+    segments_count = serializers.IntegerField(min_value=1)
+    start_timestamp = serializers.IntegerField(min_value=0)
+    end_timestamp = serializers.IntegerField(min_value=0)
+    item = serializers.CharField()
+
+    def validate(self, attrs):
+        if attrs['start_timestamp'] >= attrs['end_timestamp']:
+            raise serializers.ValidationError('Interval value `from` has to be less then `to`')
+        return attrs
+
+    def get_stats(self, host):
+        if not host.backend_id or host.state in (models.Host.States.PROVISIONING_SCHEDULED,
+                                                 models.Host.States.PROVISIONING):
+            raise serializers.ValidationError('Host is not provisioned')
+
+        item_key = self.data['item']
+        if not models.Item.objects.filter(template__hosts=host, name=item_key).exists():
+            raise serializers.ValidationError({'item': 'Item is not found'})
+
+        backend = host.get_backend()
+        return backend.get_item_stats(host.backend_id,
+                                      item_key,
+                                      self.data['start_timestamp'],
+                                      self.data['end_timestamp'],
+                                      self.data['segments_count'])

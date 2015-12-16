@@ -1,17 +1,25 @@
+from datetime import timedelta
 import logging
+import sys
 import warnings
 
+from django.db import connections, DatabaseError
+from django.utils import six, timezone
 import pyzabbix
 import requests
 from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
 
 from nodeconductor.core.tasks import send_task
+from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.structure import ServiceBackend, ServiceBackendError
 from ..import models
 
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.DEBUG)
+
 
 
 class ZabbixLogsFilter(logging.Filter):
@@ -94,6 +102,9 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         'type': 1,
         'useip': 1
     }
+
+    TREND_DELAY_SECONDS = 60 * 60 # One hour
+    HISTORY_DELAY_SECONDS = 15 * 60
 
     def __init__(self, settings):
         self.settings = settings
@@ -271,6 +282,110 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         api = pyzabbix.ZabbixAPI(server=backend_url, session=unsafe_session)
         api.login(username, password)
         return api
+
+    def get_item_stats(self, hostid, item_key, start_timestamp, end_timestamp, segments_count):
+        item = self._get_item(item_key, hostid)
+        if item['value_type'] == '0':
+            # Floating value
+            history_table = 'history'
+            trend_table = 'trends'
+        elif item['value_type'] == '3':
+            # Integer value
+            history_table = 'history_uint'
+            trend_table = 'trends_uint'
+        else:
+            raise ZabbixBackendError('Cannot get statistics for non-numerical item %s', item_key)
+        convert_to_mb = item['units'] == 'B'
+
+        history_retention_days = int(item['history'])
+        history_delay_seconds = int(item['delay']) or self.HISTORY_DELAY_SECONDS
+        trend_delay_seconds = self.TREND_DELAY_SECONDS
+
+        itemid = item['itemid']
+        trends_start_date = datetime_to_timestamp(timezone.now() - timedelta(days=history_retention_days))
+
+        history_cursor = self._get_history(
+            itemid, history_table, start_timestamp - history_delay_seconds, end_timestamp)
+        trends_cursor = self._get_history(
+            itemid, trend_table, start_timestamp - trend_delay_seconds, end_timestamp)
+
+        interval = ((end_timestamp - start_timestamp) / segments_count)
+        points = range(end_timestamp, start_timestamp - interval, -interval)
+
+        segment_list = []
+        if points[1] > trends_start_date:
+            next_value = history_cursor.fetchone()
+        else:
+            next_value = trends_cursor.fetchone()
+
+        for end, start in zip(points[:-1], points[1:]):
+            segment = {'from': start, 'to': end}
+            if start > trends_start_date:
+                interval = history_delay_seconds
+            else:
+                interval = trend_delay_seconds
+
+            while True:
+                if next_value is None:
+                    break
+                time, value = next_value
+                if convert_to_mb:
+                    value /= 1.0 * 1024 * 1024
+
+                if time <= end:
+                    if end - time < interval or time > start:
+                        segment['value'] = value
+                    break
+                else:
+                    if start > trends_start_date:
+                        next_value = history_cursor.fetchone()
+                    else:
+                        next_value = trends_cursor.fetchone()
+
+            segment_list.append(segment)
+        return segment_list
+
+    def _get_item(self, item_key, hostid):
+        """
+        Find item metadata by it's key and hostid
+        """
+        try:
+            return self.api.item.get(search={'key_': item_key},
+                                     hostids=hostid,
+                                     limit=1,
+                                     output='extend')[0]
+        except (pyzabbix.ZabbixAPIException, RequestException, IndexError) as e:
+            raise ZabbixBackendError(
+                'Cannot get item: %s. Exception: %s' % (item_key, e))
+
+    def _get_history(self, itemid, table, start_timestamp, end_timestamp):
+        """
+        Execute query to zabbix db to get item values from history
+        """
+        query = (
+            'SELECT clock time, %(value_path)s value '
+            'FROM %(table)s '
+            'WHERE itemid = %(itemid)s '
+            'AND clock > %(start_timestamp)s '
+            'AND clock < %(end_timestamp)s '
+            'ORDER BY clock DESC'
+        )
+        parameters = {
+            'table': table,
+            'itemid': itemid,
+            'start_timestamp': start_timestamp,
+            'end_timestamp': end_timestamp,
+            'value_path': table.startswith('history') and 'value' or 'value_avg'
+        }
+        query = query % parameters
+
+        try:
+            cursor = connections['zabbix'].cursor()
+            cursor.execute(query)
+            return cursor
+        except DatabaseError as e:
+            logger.exception('Can not execute query the Zabbix DB.')
+            six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
 
 
 # TODO: remove dummy backend

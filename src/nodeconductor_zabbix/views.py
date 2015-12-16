@@ -1,3 +1,9 @@
+import time
+
+from rest_framework import status
+from rest_framework.decorators import detail_route
+from rest_framework.response import Response
+
 from nodeconductor.structure import views as structure_views
 from . import models, serializers, filters
 
@@ -23,6 +29,25 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         resource = serializer.save()
         backend = resource.get_backend()
         backend.provision(resource)
+
+    @detail_route()
+    def items_history(self, request, uuid=None):
+        host = self.get_object()
+
+        hour = 60 * 60
+        now = time.time()
+        data = {
+            'start_timestamp': request.query_params.get('from', int(now - hour)),
+            'end_timestamp': request.query_params.get('to', int(now)),
+            'segments_count': request.query_params.get('datapoints', 6),
+            'item': request.query_params.get('item')
+        }
+
+        serializer = serializers.StatsSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+
+        stats = serializer.get_stats(host)
+        return Response(stats, status=status.HTTP_200_OK)
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
