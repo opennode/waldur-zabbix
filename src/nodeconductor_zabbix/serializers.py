@@ -161,7 +161,7 @@ class StatsSerializer(serializers.Serializer):
         self.check_items(host)
 
         stats = []
-        for item in self.data['item']:
+        for item in self.validated_data['item']:
             for row in self.get_item_stats(host, item):
                 row['item'] = item
                 stats.append(row)
@@ -172,9 +172,9 @@ class StatsSerializer(serializers.Serializer):
         backend = host.get_backend()
         return backend.get_item_stats(host.backend_id,
                                       item,
-                                      self.data['start_timestamp'],
-                                      self.data['end_timestamp'],
-                                      self.data['segments_count'])
+                                      self.validated_data['start_timestamp'],
+                                      self.validated_data['end_timestamp'],
+                                      self.validated_data['segments_count'])
 
     def check_host(self, host):
         if not host.backend_id or host.state in (models.Host.States.PROVISIONING_SCHEDULED,
@@ -184,7 +184,7 @@ class StatsSerializer(serializers.Serializer):
     def check_items(self, host):
         items = models.Item.objects.filter(template__hosts=host)
         valid_items = set(items.values_list('name', flat=True))
-        invalid_items = set(self.data['item']) - valid_items
+        invalid_items = set(self.validated_data['item']) - valid_items
         if invalid_items:
             message = 'Invalid items: {}'.format(', '.join(invalid_items))
             raise serializers.ValidationError({'item': message})
