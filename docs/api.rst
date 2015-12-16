@@ -202,7 +202,7 @@ URL: **/api/zabbix-hosts/<host_uuid>/items_history/**
 
 Available request parameters:
 
-- ?item=(required) item name, one of host's numerical items
+- ?item=name of host template item, for example 'openstack.instance.cpu_util'
 - ?from=timestamp (default: now - one hour, example: 1415910025)
 - ?to=timestamp (default: now, example: 1415912625)
 - ?datapoints=how many data points have to be in answer(default: 6)
