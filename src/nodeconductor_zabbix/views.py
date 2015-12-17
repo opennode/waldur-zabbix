@@ -43,10 +43,17 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         serializer.is_valid(raise_exception=True)
 
         host = self.get_object()
-        self.check_host(host)
+        invalid_states = (
+            models.Host.States.PROVISIONING_SCHEDULED,
+            models.Host.States.PROVISIONING,
+            models.Host.States.ERRED
+        )
+        if not host.backend_id or host.state in invalid_states:
+            message = 'Unable to get statistics for host in %s state' % host.get_state_display()
+            raise rf_serializers.ValidationError(message)
 
         items = request.query_params.getlist('item')
-        self.check_items(host, items)
+        items = models.Item.objects.filter(template__hosts=host, name__in=items)
 
         backend = host.get_backend()
         points = map(datetime_to_timestamp, serializer.get_filter_data())
@@ -57,25 +64,11 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
             for point, value in zip(points, values):
                 stats.append({
                     'point': point,
-                    'item': item,
+                    'item': item.name,
                     'value': value
                 })
 
         return Response(stats, status=status.HTTP_200_OK)
-
-    def check_host(self, host):
-        if not host.backend_id or host.state in (models.Host.States.PROVISIONING_SCHEDULED,
-                                                 models.Host.States.PROVISIONING,
-                                                 models.Host.States.ERRED):
-            raise rf_serializers.ValidationError(
-                'Unable to get statistics for host in %s state' % host.get_state_display())
-
-    def check_items(self, host, items):
-        valid_items = set(models.Item.objects.filter(template__hosts=host).values_list('name', flat=True))
-        invalid_items = set(items) - valid_items
-        if invalid_items:
-            message = 'Invalid items: {}'.format(', '.join(invalid_items))
-            raise rf_serializers.ValidationError({'item': message})
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):

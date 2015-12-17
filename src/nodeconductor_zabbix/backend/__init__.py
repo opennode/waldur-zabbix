@@ -209,23 +209,36 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         """ Update existing NodeConductor items from Zabbix templates """
         logger.debug('About to pull Zabbix items for template %s', template.name)
         try:
-            zabbix_items = self.api.item.get(output=['itemid', 'key_'], templateids=template.backend_id)
-            zabbix_items_ids = set([i['itemid'] for i in zabbix_items])
-            # Delete stale template items
-            template.items.exclude(backend_id__in=zabbix_items_ids).delete()
-            # Update or create zabbix items
-            for zabbix_item in zabbix_items:
-                defaults = {'name': zabbix_item['key_']}
-                nc_item, created = template.items.get_or_create(
-                    backend_id=zabbix_item['itemid'], defaults=defaults)
-                if not created and (nc_item.name != zabbix_item['key_'] or nc_item.template != template):
-                    nc_item.name = zabbix_item['name']
-                    nc_item.template = template
-                    nc_item.save()
+            fields = ('itemid', 'key_', 'value_type', 'units', 'history', 'delay')
+            zabbix_items = self.api.item.get(output=fields, templateids=template.backend_id)
         except pyzabbix.ZabbixAPIException as e:
-            raise ZabbixBackendError('Cannot pull template items for template %s. Exception: %s' % (template.name, e))
-        else:
-            logger.debug('Successfully pulled Zabbix items for template %s.', template.name)
+            message = 'Cannot pull template items for template %s. Exception: %s' % (template.name, e)
+            raise ZabbixBackendError(message)
+
+        zabbix_items_ids = set([i['itemid'] for i in zabbix_items])
+        # Delete stale template items
+        template.items.exclude(backend_id__in=zabbix_items_ids).delete()
+
+        # Update or create zabbix items
+        for zabbix_item in zabbix_items:
+            defaults = {
+                'name': zabbix_item['key_'],
+                'value_type': int(zabbix_item['value_type']),
+                'units': zabbix_item['units'],
+                'history': int(zabbix_item['history']),
+                'delay': int(zabbix_item['delay'])
+            }
+            nc_item, created = template.items.get_or_create(
+                backend_id=zabbix_item['itemid'], defaults=defaults)
+            if not created:
+                update_fields = []
+                for (name, value) in defaults.items():
+                    if getattr(nc_item, name) != value:
+                        setattr(nc_item, name, value)
+                        update_fields.append(name)
+                if update_fields:
+                    nc_item.save(update_fields=update_fields)
+        logger.debug('Successfully pulled Zabbix items for template %s.', template.name)
 
     def _update_host(self, host_id, **kwargs):
         try:
@@ -288,32 +301,28 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         api.login(username, password)
         return api
 
-    def get_item_stats(self, hostid, item_key, points):
-        item = self._get_item(item_key, hostid)
-        if item['value_type'] == '0':
-            # Floating value
+    def get_item_stats(self, hostid, item, points):
+        if item.value_type == models.Item.ValueTypes.FLOAT:
             history_table = 'history'
             trend_table = 'trends'
-        elif item['value_type'] == '3':
+        elif item.value_type == models.Item.ValueTypes.INTEGER:
             # Integer value
             history_table = 'history_uint'
             trend_table = 'trends_uint'
         else:
-            raise ZabbixBackendError('Cannot get statistics for non-numerical item %s', item_key)
-        convert_to_mb = item['units'] == 'B'
+            raise ZabbixBackendError('Cannot get statistics for non-numerical item %s' % item.name)
 
-        history_retention_days = int(item['history'])
-        history_delay_seconds = int(item['delay']) or self.HISTORY_DELAY_SECONDS
+        history_retention_days = item.history
+        history_delay_seconds = item.delay or self.HISTORY_DELAY_SECONDS
         trend_delay_seconds = self.TREND_DELAY_SECONDS
 
-        itemid = item['itemid']
         trends_start_date = datetime_to_timestamp(timezone.now() - timedelta(days=history_retention_days))
 
         points = points[::-1]
         history_cursor = self._get_history(
-            itemid, history_table, points[-1] - history_delay_seconds, points[0])
+            item.name, hostid, history_table, points[-1] - history_delay_seconds, points[0])
         trends_cursor = self._get_history(
-            itemid, trend_table, points[-1] - trend_delay_seconds, points[0])
+            item.name, hostid, trend_table, points[-1] - trend_delay_seconds, points[0])
 
         values = []
         if points[0] > trends_start_date:
@@ -332,8 +341,8 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                 if next_value is None:
                     break
                 time, value = next_value
-                if convert_to_mb:
-                    value /= 1.0 * 1024 * 1024
+                if item.is_byte():
+                    value = self.b2mb(value)
 
                 if time <= end:
                     if end - time < interval or time > start:
@@ -347,34 +356,27 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             values.append(value)
         return values[::-1]
 
-    def _get_item(self, item_key, hostid):
-        """
-        Find item metadata by it's key and hostid
-        """
-        try:
-            return self.api.item.get(search={'key_': item_key},
-                                     hostids=hostid,
-                                     limit=1,
-                                     output='extend')[0]
-        except (pyzabbix.ZabbixAPIException, RequestException, IndexError) as e:
-            raise ZabbixBackendError(
-                'Cannot get item: %s. Exception: %s' % (item_key, e))
+    def b2mb(self, value):
+        return value / 1024 / 1024
 
-    def _get_history(self, itemid, table, start_timestamp, end_timestamp):
+    def _get_history(self, item_key, hostid, table, start_timestamp, end_timestamp):
         """
         Execute query to zabbix db to get item values from history
         """
         query = (
             'SELECT clock time, %(value_path)s value '
-            'FROM %(table)s '
-            'WHERE itemid = %(itemid)s '
+            'FROM %(table)s history, items '
+            'WHERE history.itemid = items.itemid '
+            'AND items.key_ = "%(item_key)s" '
+            'AND items.hostid = %(hostid)s '
             'AND clock > %(start_timestamp)s '
             'AND clock < %(end_timestamp)s '
             'ORDER BY clock DESC'
         )
         parameters = {
             'table': table,
-            'itemid': itemid,
+            'item_key': item_key,
+            'hostid': hostid,
             'start_timestamp': start_timestamp,
             'end_timestamp': end_timestamp,
             'value_path': table.startswith('history') and 'value' or 'value_avg'
