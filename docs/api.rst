@@ -211,9 +211,9 @@ Request should specify datetime points and items. There are two ways to define d
 Also you should specify one or more name of host template items, for example 'openstack.instance.cpu_util'
 
 Response is list of datapoint, each of which is dictionary with following fields:
-- 'point' - timestamp;
-- 'value' - values are converted from bytes to megabytes, if possible;
-- 'item' - name of host template item.
+ - 'point' - timestamp;
+ - 'value' - values are converted from bytes to megabytes, if possible;
+ - 'item' - name of host template item.
 
 Example response:
 
@@ -251,3 +251,13 @@ Example response:
             "item": "openstack.instance.cpu_util"
         }
     ]
+
+
+Aggregated host statistics
+--------------------------
+
+URL: **/api/zabbix-hosts/aggregated_items_history/**
+
+Request should specify host filtering parameters, datetime points, and items.
+Host filtering parameters are the same as for */api/resources/* endpoint.
+Input/output format is the same as for **/api/zabbix-hosts/<host_uuid>/items_history/** endpoint.
