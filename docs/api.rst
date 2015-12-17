@@ -201,15 +201,17 @@ Host statistics
 
 URL: **/api/zabbix-hosts/<host_uuid>/items_history/**
 
-Available request parameters:
+Request should specify datetime points and items. There are two ways to define datetime points for historical data.
 
-- ?item=name of host template item, for example 'openstack.instance.cpu_util'
-- ?from=timestamp (default: now - one hour, example: 1415910025)
-- ?to=timestamp (default: now, example: 1415912625)
-- ?datapoints=how many data points have to be in answer(default: 6)
+1. Send *?point=<timestamp>* parameter that can list. Response will contain historical data for each given point in the
+   same order.
+2. Send *?start=<timestamp>*, *?end=<timestamp>*, *?points_count=<integer>* parameters.
+   Result will contain <points_count> points from <start> to <end>.
+
+Also you should specify one or more name of host template items, for example 'openstack.instance.cpu_util'
 
 Response is list of datapoint, each of which is dictionary with following fields:
-- 'from' and 'to' - timestamps; datapoints are sorted in descending time order;
+- 'point' - timestamp;
 - 'value' - values are converted from bytes to megabytes, if possible;
 - 'item' - name of host template item.
 
@@ -219,39 +221,33 @@ Example response:
 
     [
         {
-            "to": 1443078000,
-            "from": 1442849400,
-            "value": 50.3574,
+            "point": 1441935000,
+            "value": 0.1393,
             "item": "openstack.instance.cpu_util"
         },
         {
-            "to": 1442849400,
-            "from": 1442620800,
-            "value": 40.3353,
-            "item": "openstack.instance.cpu_util"
-        },
-        {
-            "to": 1442620800,
-            "from": 1442392200,
-            "value": 30.3426,
-            "item": "openstack.instance.cpu_util"
-        },
-        {
-            "to": 1442392200,
-            "from": 1442163600,
-            "value": 20.3725,
-            "item": "openstack.instance.cpu_util"
-        },
-        {
-            "to": 1442163600,
-            "from": 1441935000,
+            "point": 1442163600,
             "value": 10.2583,
             "item": "openstack.instance.cpu_util"
         },
         {
-            "to": 1441935000,
-            "from": 1441706400,
-            "value": 0.1393,
+            "point": 1442392200,
+            "value": 20.3725,
+            "item": "openstack.instance.cpu_util"
+        },
+        {
+            "point": 1442620800,
+            "value": 30.3426,
+            "item": "openstack.instance.cpu_util"
+        },
+        {
+            "point": 1442849400,
+            "value": 40.3353,
+            "item": "openstack.instance.cpu_util"
+        },
+        {
+            "point": 1443078000,
+            "value": 50.3574,
             "item": "openstack.instance.cpu_util"
         }
     ]

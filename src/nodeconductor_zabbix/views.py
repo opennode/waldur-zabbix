@@ -49,7 +49,7 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         self.check_items(host, items)
 
         backend = host.get_backend()
-        points = map(datetime_to_timestamp, serializer.get_filter_data()[::-1])
+        points = map(datetime_to_timestamp, serializer.get_filter_data())
 
         stats = []
         for item in items:

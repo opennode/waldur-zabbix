@@ -309,6 +309,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         itemid = item['itemid']
         trends_start_date = datetime_to_timestamp(timezone.now() - timedelta(days=history_retention_days))
 
+        points = points[::-1]
         history_cursor = self._get_history(
             itemid, history_table, points[-1] - history_delay_seconds, points[0])
         trends_cursor = self._get_history(
@@ -344,7 +345,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                         next_value = trends_cursor.fetchone()
 
             values.append(value)
-        return values
+        return values[::-1]
 
     def _get_item(self, item_key, hostid):
         """
