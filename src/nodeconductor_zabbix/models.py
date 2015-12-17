@@ -75,6 +75,28 @@ class Template(structure_models.ServiceProperty):
 
 
 class Item(models.Model):
+    class ValueTypes:
+        FLOAT = 0
+        CHAR = 1
+        LOG = 2
+        INTEGER = 3
+        TEXT = 4
+
+        CHOICES = (
+            (FLOAT, 'Numeric (float)'),
+            (CHAR, 'Character'),
+            (LOG, 'Log'),
+            (INTEGER, 'Numeric (unsigned)'),
+            (TEXT, 'Text')
+        )
+
     name = models.CharField(max_length=64)
     template = models.ForeignKey(Template, related_name='items')
     backend_id = models.CharField(max_length=64)
+    value_type = models.IntegerField(choices=ValueTypes.CHOICES)
+    units = models.CharField(max_length=255)
+    history = models.IntegerField()
+    delay = models.IntegerField()
+
+    def is_byte(self):
+        return self.units == 'B'
