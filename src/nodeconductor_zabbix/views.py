@@ -15,7 +15,7 @@ class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkView
 class HostViewSet(structure_views.BaseOnlineResourceViewSet):
     queryset = models.Host.objects.all()
     serializer_class = serializers.HostSerializer
-    filter_backends = (
+    filter_backends = structure_views.BaseOnlineResourceViewSet.filter_backends + (
         filters.HostScopeFilterBackend,
     )
 
