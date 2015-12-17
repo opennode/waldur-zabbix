@@ -22,6 +22,8 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
                                 'host). (default: {"dns": "", "ip": "0.0.0.0", "main": 1, "port": "10050", "type": 1, '
                                 '"useip": 1})',
         'templates_names': 'List of Zabbix hosts templates. (default: ["NodeConductor"])',
+        'database_parameters': 'Zabbix database parameters. (default: {"host": "localhost", "port": "3306", '
+                               '"name": "zabbix", "user": "admin", "password": ""})'
     }
 
     class Meta(structure_serializers.BaseServiceSerializer.Meta):
@@ -38,8 +40,14 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
             write_only=True,
         )
         fields['interface_parameters'] = JsonField(
-            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_INTERFACE_PARAMTERS),
+            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_INTERFACE_PARAMETERS),
             help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['interface_parameters'],
+            required=True,
+            write_only=True,
+        )
+        fields['database_parameters'] = JsonField(
+            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_DATABASE_PARAMETERS),
+            help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['database_parameters'],
             required=True,
             write_only=True,
         )

@@ -91,13 +91,20 @@ class ZabbixRealBackend(ZabbixBaseBackend):
 
     DEFAULT_HOST_GROUP_NAME = 'nodeconductor'
     DEFAULT_TEMPLATES_NAMES = ('NodeConductor',)
-    DEFAULT_INTERFACE_PARAMTERS = {
+    DEFAULT_INTERFACE_PARAMETERS = {
         'dns': '',
         'ip': '0.0.0.0',
         'main': 1,
         'port': '10050',
         'type': 1,
         'useip': 1
+    }
+    DEFAULT_DATABASE_PARAMETERS = {
+        'host': 'localhost',
+        'port': '3306',
+        'name': 'zabbix',
+        'user': 'admin',
+        'password': ''
     }
 
     TREND_DELAY_SECONDS = 60 * 60 # One hour
@@ -108,7 +115,8 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         self.options = settings.options or {}
         self.host_group_name = self.options.get('host_group_name', self.DEFAULT_HOST_GROUP_NAME)
         self.templates_names = self.options.get('templates_names', self.DEFAULT_TEMPLATES_NAMES)
-        self.interface_parameters = self.options.get('interface_parameters', self.DEFAULT_INTERFACE_PARAMTERS)
+        self.interface_parameters = self.options.get('interface_parameters', self.DEFAULT_INTERFACE_PARAMETERS)
+        self.database_parameters = self.options.get('database_parameters', self.DEFAULT_DATABASE_PARAMETERS)
 
     @property
     def api(self):
@@ -377,12 +385,31 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         query = query % parameters
 
         try:
-            cursor = connections['zabbix'].cursor()
+            cursor = self._get_db_connection().cursor()
             cursor.execute(query)
             return cursor
         except DatabaseError as e:
             logger.exception('Can not execute query the Zabbix DB.')
             six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
+
+    def _get_db_connection(self):
+        db_name = self.database_parameters['name']
+        db_host = self.database_parameters['host']
+        db_port = self.database_parameters['port']
+        db_user = self.database_parameters['user']
+        db_password = self.database_parameters['password']
+
+        key = '/'.join([db_name, db_host, db_port])
+        if key not in connections.databases:
+            connections.databases[key] = {
+                'ENGINE': 'django.db.backends.mysql',
+                'NAME': db_name,
+                'HOST': db_host,
+                'PORT': db_port,
+                'USER': db_user,
+                'PASSWORD': db_password
+            }
+        return connections[key]
 
 
 # TODO: remove dummy backend
