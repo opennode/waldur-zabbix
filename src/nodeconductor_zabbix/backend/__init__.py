@@ -288,7 +288,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         api.login(username, password)
         return api
 
-    def get_item_stats(self, hostid, item_key, start_timestamp, end_timestamp, segments_count):
+    def get_item_stats(self, hostid, item_key, points):
         item = self._get_item(item_key, hostid)
         if item['value_type'] == '0':
             # Floating value
@@ -310,26 +310,23 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         trends_start_date = datetime_to_timestamp(timezone.now() - timedelta(days=history_retention_days))
 
         history_cursor = self._get_history(
-            itemid, history_table, start_timestamp - history_delay_seconds, end_timestamp)
+            itemid, history_table, points[-1] - history_delay_seconds, points[0])
         trends_cursor = self._get_history(
-            itemid, trend_table, start_timestamp - trend_delay_seconds, end_timestamp)
+            itemid, trend_table, points[-1] - trend_delay_seconds, points[0])
 
-        interval = ((end_timestamp - start_timestamp) / segments_count)
-        points = range(end_timestamp, start_timestamp - interval, -interval)
-
-        segment_list = []
-        if points[1] > trends_start_date:
+        values = []
+        if points[0] > trends_start_date:
             next_value = history_cursor.fetchone()
         else:
             next_value = trends_cursor.fetchone()
 
         for end, start in zip(points[:-1], points[1:]):
-            segment = {'from': start, 'to': end}
             if start > trends_start_date:
                 interval = history_delay_seconds
             else:
                 interval = trend_delay_seconds
 
+            value = None
             while True:
                 if next_value is None:
                     break
@@ -339,16 +336,15 @@ class ZabbixRealBackend(ZabbixBaseBackend):
 
                 if time <= end:
                     if end - time < interval or time > start:
-                        segment['value'] = value
-                    break
+                        break
                 else:
                     if start > trends_start_date:
                         next_value = history_cursor.fetchone()
                     else:
                         next_value = trends_cursor.fetchone()
 
-            segment_list.append(segment)
-        return segment_list
+            values.append(value)
+        return values
 
     def _get_item(self, item_key, hostid):
         """
@@ -393,21 +389,21 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
 
     def _get_db_connection(self):
-        db_name = self.database_parameters['name']
-        db_host = self.database_parameters['host']
-        db_port = self.database_parameters['port']
-        db_user = self.database_parameters['user']
-        db_password = self.database_parameters['password']
+        host = self.database_parameters['host']
+        port = self.database_parameters['port']
+        name = self.database_parameters['name']
+        user = self.database_parameters['user']
+        password = self.database_parameters['password']
 
-        key = '/'.join([db_name, db_host, db_port])
+        key = '/'.join([name, host, port])
         if key not in connections.databases:
             connections.databases[key] = {
                 'ENGINE': 'django.db.backends.mysql',
-                'NAME': db_name,
-                'HOST': db_host,
-                'PORT': db_port,
-                'USER': db_user,
-                'PASSWORD': db_password
+                'NAME': name,
+                'HOST': host,
+                'PORT': port,
+                'USER': user,
+                'PASSWORD': password
             }
         return connections[key]
 

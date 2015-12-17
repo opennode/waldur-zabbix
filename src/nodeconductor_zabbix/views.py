@@ -1,9 +1,10 @@
-import time
-
 from rest_framework import status
 from rest_framework.decorators import detail_route
 from rest_framework.response import Response
+from rest_framework import serializers as rf_serializers
 
+from nodeconductor.core.serializers import HistorySerializer
+from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.structure import views as structure_views
 from . import models, serializers, filters
 
@@ -32,21 +33,49 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
 
     @detail_route()
     def items_history(self, request, uuid=None):
-        host = self.get_object()
-
-        hour = 60 * 60
-        now = time.time()
         mapped = {
-            'start_timestamp': request.query_params.get('from', int(now - hour)),
-            'end_timestamp': request.query_params.get('to', int(now)),
-            'segments_count': request.query_params.get('datapoints', 6),
-            'item': request.query_params.getlist('item')
+            'start': request.query_params.get('start'),
+            'end': request.query_params.get('end'),
+            'points_count': request.query_params.get('points_count'),
+            'point_list': request.query_params.getlist('point')
         }
-
-        serializer = serializers.StatsSerializer(data={k: v for k, v in mapped.items() if v})
+        serializer = HistorySerializer(data={k: v for k, v in mapped.items() if v})
         serializer.is_valid(raise_exception=True)
 
-        return Response(serializer.get_stats(host), status=status.HTTP_200_OK)
+        host = self.get_object()
+        self.check_host(host)
+
+        items = request.query_params.getlist('item')
+        self.check_items(host, items)
+
+        backend = host.get_backend()
+        points = map(datetime_to_timestamp, serializer.get_filter_data()[::-1])
+
+        stats = []
+        for item in items:
+            values = backend.get_item_stats(host.backend_id, item, points)
+            for point, value in zip(points, values):
+                stats.append({
+                    'point': point,
+                    'item': item,
+                    'value': value
+                })
+
+        return Response(stats, status=status.HTTP_200_OK)
+
+    def check_host(self, host):
+        if not host.backend_id or host.state in (models.Host.States.PROVISIONING_SCHEDULED,
+                                                 models.Host.States.PROVISIONING,
+                                                 models.Host.States.ERRED):
+            raise rf_serializers.ValidationError(
+                'Unable to get statistics for host in %s state' % host.get_state_display())
+
+    def check_items(self, host, items):
+        valid_items = set(models.Item.objects.filter(template__hosts=host).values_list('name', flat=True))
+        invalid_items = set(items) - valid_items
+        if invalid_items:
+            message = 'Invalid items: {}'.format(', '.join(invalid_items))
+            raise rf_serializers.ValidationError({'item': message})
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
