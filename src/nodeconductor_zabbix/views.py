@@ -53,8 +53,12 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         return hosts
 
     def _get_stats(self, request, hosts):
+        """
+        If item list contains several elements, result is ordered by item
+        (in the same order as it has been provided in request) and then by time.
+        """
         items = request.query_params.getlist('item')
-        items = set(models.Item.objects.filter(template__hosts__in=hosts, name__in=items))
+        items = models.Item.objects.filter(template__hosts__in=hosts, name__in=items).distinct()
 
         points = self._get_points(request)
 
