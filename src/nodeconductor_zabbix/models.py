@@ -31,7 +31,7 @@ class ZabbixServiceProjectLink(structure_models.ServiceProjectLink):
 
 class Host(structure_models.Resource):
     VISIBLE_NAME_MAX_LENGTH = 64
-    service_project_link = models.ForeignKey(ZabbixServiceProjectLink, related_name='crms', on_delete=models.PROTECT)
+    service_project_link = models.ForeignKey(ZabbixServiceProjectLink, related_name='hosts', on_delete=models.PROTECT)
     visible_name = models.CharField(_('visible name'), max_length=VISIBLE_NAME_MAX_LENGTH)
     interface_parameters = JSONField(blank=True)
     host_group_name = models.CharField(_('host group name'), max_length=64, blank=True)
@@ -42,6 +42,10 @@ class Host(structure_models.Resource):
     scope = GenericForeignKey('content_type', 'object_id')
 
     objects = managers.HostManager('scope')
+
+    good_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
+    service_id = models.CharField(max_length=255, blank=True)
+    trigger_id = models.CharField(max_length=255, blank=True)
 
     @classmethod
     def get_url_name(cls):
@@ -100,3 +104,31 @@ class Item(models.Model):
 
     def is_byte(self):
         return self.units == 'B'
+
+
+class SlaHistory(models.Model):
+    host = models.ForeignKey(Host)
+    period = models.CharField(max_length=10)
+    value = models.DecimalField(max_digits=11, decimal_places=4, null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'SLA history'
+        verbose_name_plural = 'SLA histories'
+        unique_together = ('host', 'period')
+
+    def __str__(self):
+        return 'SLA for %s during %s: %s' % (self.scope, self.period, self.value)
+
+
+class SlaHistoryEvent(models.Model):
+    EVENTS = (
+        ('U', 'DOWN'),
+        ('D', 'UP'),
+    )
+
+    history = models.ForeignKey(SlaHistory, related_name='events')
+    timestamp = models.IntegerField()
+    state = models.CharField(max_length=1, choices=EVENTS)
+
+    def __str__(self):
+        return '%s - %s' % (self.timestamp, self.state)

@@ -23,7 +23,8 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
                                 '"useip": 1})',
         'templates_names': 'List of Zabbix hosts templates. (default: ["NodeConductor"])',
         'database_parameters': 'Zabbix database parameters. (default: {"host": "localhost", "port": "3306", '
-                               '"name": "zabbix", "user": "admin", "password": ""})'
+                               '"name": "zabbix", "user": "admin", "password": ""})',
+        'service_triggers': 'Map resource type to trigger description in order to create service level agreement'
     }
 
     class Meta(structure_serializers.BaseServiceSerializer.Meta):
@@ -48,6 +49,12 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
         fields['database_parameters'] = JsonField(
             initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_DATABASE_PARAMETERS),
             help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['database_parameters'],
+            required=True,
+            write_only=True,
+        )
+        fields['service_triggers'] = JsonField(
+            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_SERVICE_TRIGGERS),
+            help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['service_triggers'],
             required=True,
             write_only=True,
         )
@@ -111,7 +118,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         model = models.Host
         view_name = 'zabbix-host-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates')
+            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates', 'good_sla')
 
     def get_resource_fields(self):
         return super(HostSerializer, self).get_resource_fields() + ['scope']

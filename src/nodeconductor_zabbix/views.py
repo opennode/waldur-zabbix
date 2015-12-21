@@ -1,7 +1,6 @@
 from rest_framework import status
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.response import Response
-from rest_framework import serializers as rf_serializers
 
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.utils import datetime_to_timestamp
@@ -42,12 +41,7 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         return Response(stats, status=status.HTTP_200_OK)
 
     def _get_hosts(self, uuid=None):
-        invalid_states = (
-            models.Host.States.PROVISIONING_SCHEDULED,
-            models.Host.States.PROVISIONING,
-            models.Host.States.ERRED
-        )
-        hosts = self.get_queryset().exclude(backend_id='', state__in=invalid_states)
+        hosts = self.get_queryset().get_valid_hosts()
         if uuid:
             hosts = hosts.filter(uuid=uuid)
         return hosts
