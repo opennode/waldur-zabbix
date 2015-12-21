@@ -261,3 +261,26 @@ URL: **/api/zabbix-hosts/aggregated_items_history/**
 Request should specify host filtering parameters, datetime points, and items.
 Host filtering parameters are the same as for */api/resources/* endpoint.
 Input/output format is the same as for **/api/zabbix-hosts/<host_uuid>/items_history/** endpoint.
+
+Example request and response:
+
+.. code-block:: http
+
+    GET /api/zabbix-hosts/aggregated_items_history/?point=1436094582&point=1443078000&customer_uuid=7313b71bd1cc421ea297dcb982e40260&item=openstack.instance.cpu_util HTTP/1.1
+    Content-Type: application/json
+    Accept: application/json
+    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
+    Host: example.com
+
+    [
+        {
+            "point": 1436094582,
+            "item": "openstack.instance.cpu_util",
+            "value": 40.3353
+        },
+        {
+            "point": 1443078000,
+            "item": "openstack.instance.cpu_util",
+            "value": 50.3574
+        }
+    ]
