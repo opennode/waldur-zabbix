@@ -211,9 +211,9 @@ Request should specify datetime points and items. There are two ways to define d
 Also you should specify one or more name of host template items, for example 'openstack.instance.cpu_util'
 
 Response is list of datapoint, each of which is dictionary with following fields:
-- 'point' - timestamp;
-- 'value' - values are converted from bytes to megabytes, if possible;
-- 'item' - name of host template item.
+ - 'point' - timestamp;
+ - 'value' - values are converted from bytes to megabytes, if possible;
+ - 'item' - name of host template item.
 
 Example response:
 
@@ -249,5 +249,38 @@ Example response:
             "point": 1443078000,
             "value": 50.3574,
             "item": "openstack.instance.cpu_util"
+        }
+    ]
+
+
+Aggregated host statistics
+--------------------------
+
+URL: **/api/zabbix-hosts/aggregated_items_history/**
+
+Request should specify host filtering parameters, datetime points, and items.
+Host filtering parameters are the same as for */api/resources/* endpoint.
+Input/output format is the same as for **/api/zabbix-hosts/<host_uuid>/items_history/** endpoint.
+
+Example request and response:
+
+.. code-block:: http
+
+    GET /api/zabbix-hosts/aggregated_items_history/?point=1436094582&point=1443078000&customer_uuid=7313b71bd1cc421ea297dcb982e40260&item=openstack.instance.cpu_util HTTP/1.1
+    Content-Type: application/json
+    Accept: application/json
+    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
+    Host: example.com
+
+    [
+        {
+            "point": 1436094582,
+            "item": "openstack.instance.cpu_util",
+            "value": 40.3353
+        },
+        {
+            "point": 1443078000,
+            "item": "openstack.instance.cpu_util",
+            "value": 50.3574
         }
     ]
