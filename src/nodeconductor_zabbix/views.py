@@ -41,7 +41,7 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         return Response(stats, status=status.HTTP_200_OK)
 
     def _get_hosts(self, uuid=None):
-        hosts = self.get_queryset().get_valid_hosts()
+        hosts = self.get_queryset().get_active_hosts()
         if uuid:
             hosts = hosts.filter(uuid=uuid)
         return hosts

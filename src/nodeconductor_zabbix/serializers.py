@@ -24,7 +24,8 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
         'templates_names': 'List of Zabbix hosts templates. (default: ["NodeConductor"])',
         'database_parameters': 'Zabbix database parameters. (default: {"host": "localhost", "port": "3306", '
                                '"name": "zabbix", "user": "admin", "password": ""})',
-        'service_triggers': 'Map resource type to trigger description in order to create service level agreement'
+        'service_triggers': 'Map resource type to trigger description in order to create service level agreement. '
+                            '(default: {"OpenStack.Instance": "Missing data about the VM"})'
     }
 
     class Meta(structure_serializers.BaseServiceSerializer.Meta):

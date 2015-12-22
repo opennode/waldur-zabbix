@@ -105,7 +105,7 @@ def update_sla(sla_type):
 
     end_time = int(dt.strftime("%s"))
 
-    hosts = Host.objects.get_valid_hosts()
+    hosts = Host.objects.get_active_hosts()
     for host in hosts:
         update_host_sla(host, period, start_time, end_time)
 
@@ -121,17 +121,14 @@ def update_host_sla(host, period, start_time, end_time):
         entry, _ = SlaHistory.objects.get_or_create(host=host, period=period)
         entry.value = Decimal(current_sla)
         entry.save()
-    except ZabbixBackendError as e:
-        logger.warning('Unable to update SLA value for %s. Reason: %s' % (host.service_id, e))
 
-    # update connected events
-    try:
+        # update connected events
         events = backend.get_trigger_events(host.trigger_id, start_time, end_time)
         for event in events:
             event_state = 'U' if int(event['value']) == 0 else 'D'
             entry.events.get_or_create(
-                    timestamp=int(event['timestamp']),
-                    state=event_state
+                timestamp=int(event['timestamp']),
+                state=event_state
             )
     except ZabbixBackendError as e:
-            logger.warning('Unable to update events for trigger %s. Reason: %s' % (host.trigger_id, e))
+        logger.warning('Unable to update SLA for host %s. Reason: %s' % (host.id, e))

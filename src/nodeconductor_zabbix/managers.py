@@ -10,7 +10,7 @@ class HostManager(GenericKeyMixin, StructureManager):
         """ Return list of models that are acceptable """
         return Resource.get_all_models()
 
-    def get_valid_hosts(self):
+    def get_active_hosts(self):
         INVALID_STATES = (
             Resource.States.PROVISIONING_SCHEDULED,
             Resource.States.PROVISIONING,

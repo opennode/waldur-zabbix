@@ -106,6 +106,11 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         'user': 'admin',
         'password': ''
     }
+
+    """
+    Map resource type to description of trigger.
+    Then trigger is passed as argument to service.create method of Zabbix IT service API.
+    """
     DEFAULT_SERVICE_TRIGGERS = {
         'OpenStack.Instance': 'Missing data about the VM'
     }
@@ -166,9 +171,15 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             self.provision_service(host)
 
     def provision_service(self, host):
-        service_name = self._get_service_name(host.scope.backend_id)
         resource_type = SupportedServices.get_name_for_model(host.scope)
-        trigger_id = self._get_host_sla_trigger_id(host.backend_id, resource_type)
+        description = self.service_triggers.get(resource_type)
+        if not description:
+            logger.warning('Zabbix IT service is not created because trigger '
+                           'description for resource with type %s is missing', resource_type)
+            return
+        trigger_id = self._get_trigger_id(host.backend_id, description)
+
+        service_name = self._get_service_name(host.scope.backend_id)
         service, created = self.get_or_create_service(service_name, host.good_sla, trigger_id)
 
         host.service_id = service['serviceid']
@@ -301,7 +312,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             raise ZabbixBackendError(
                 'Cannot get or create host with parameters: %s. Exception: %s' % (host_parameters, str(e)))
 
-    def get_or_create_service(self, service_name, good_sla, trigger_id):
+    def get_or_create_service(self, name, good_sla, trigger_id):
         """ Get or create Zabbix IT service with given parameters.
 
         Return (<service>, <is_created>) tuple as result.
@@ -309,45 +320,47 @@ class ZabbixRealBackend(ZabbixBaseBackend):
 
         # Zabbix service API does not have service.exists method
         try:
-            services = self.api.service.get(filter={'name': service_name})
+            services = self.api.service.get(filter={'name': name})
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             message = 'Cannot get Zabbix IT service with name: %s. Exception: %s'
-            raise ZabbixBackendError(message % (service_parameters, str(e)))
+            raise ZabbixBackendError(message % (name, str(e)))
 
         if len(services) == 1:
             return services[0], False
         elif len(services) > 1:
-            raise ZabbixBackendError('Multiple services found with name %s' % service_name)
+            raise ZabbixBackendError('Multiple services found with name %s' % name)
 
         try:
             service = self.api.service.create({
                 'algorithm': 1,
-                'name': service_name,
+                'name': name,
                 'showsla': 1,
                 'sortorder': 1,
                 'goodsla': good_sla,
                 'triggerid': trigger_id
             })
-            logger.debug('IT Service with name %s has been created', service_name)
+            logger.debug('Zabbix IT service with name %s has been created', name)
             return service, True
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             message = 'Cannot create Zabbix IT service with name: %s. Exception: %s'
-            raise ZabbixBackendError(message % (service_name, str(e)))
+            raise ZabbixBackendError(message % (name, str(e)))
 
     def _get_service_name(self, backend_id):
         return 'Availability of %s' % backend_id
 
-    def _get_host_sla_trigger_id(self, host_id, resource_type):
+    def _get_trigger_id(self, host_id, description):
+        """
+        Find trigger ID by host ID and trigger description
+        """
         try:
-            description = self.service_triggers[resource_type]
             data = self.api.trigger.get(
                 filter={'description': description},
                 hostids=host_id,
                 output=['triggerid'])
             return data[0]['triggerid']
         except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
-            message = 'No SLA trigger for host with id %s and resource type %s'
-            raise ZabbixBackendError(message % (host_id, resource_type))
+            message = 'No trigger for host %s and description %s'
+            raise ZabbixBackendError(message % (host_id, description))
 
     def delete_service(self, service_id):
         try:
