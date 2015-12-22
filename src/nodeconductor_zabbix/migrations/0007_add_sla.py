@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='host',
-            name='good_sla',
+            name='agreed_sla',
             field=models.DecimalField(null=True, max_digits=6, decimal_places=4, blank=True),
             preserve_default=True,
         ),

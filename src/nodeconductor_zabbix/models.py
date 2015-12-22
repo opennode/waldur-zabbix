@@ -43,7 +43,7 @@ class Host(structure_models.Resource):
 
     objects = managers.HostManager('scope')
 
-    good_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
+    agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
     service_id = models.CharField(max_length=255, blank=True)
     trigger_id = models.CharField(max_length=255, blank=True)
 

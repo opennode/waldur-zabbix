@@ -167,7 +167,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         host.backend_id = zabbix_host_id
         host.save()
 
-        if host.good_sla:
+        if host.agreed_sla:
             self.provision_service(host)
 
     def provision_service(self, host):
@@ -180,7 +180,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         trigger_id = self._get_trigger_id(host.backend_id, description)
 
         service_name = self._get_service_name(host.scope.backend_id)
-        service, created = self.get_or_create_service(service_name, host.good_sla, trigger_id)
+        service, created = self.get_or_create_service(service_name, host.agreed_sla, trigger_id)
 
         host.service_id = service['serviceid']
         host.trigger_id = trigger_id
@@ -312,7 +312,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             raise ZabbixBackendError(
                 'Cannot get or create host with parameters: %s. Exception: %s' % (host_parameters, str(e)))
 
-    def get_or_create_service(self, name, good_sla, trigger_id):
+    def get_or_create_service(self, name, agreed_sla, trigger_id):
         """ Get or create Zabbix IT service with given parameters.
 
         Return (<service>, <is_created>) tuple as result.
@@ -336,7 +336,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                 'name': name,
                 'showsla': 1,
                 'sortorder': 1,
-                'goodsla': good_sla,
+                'goodsla': agreed_sla,
                 'triggerid': trigger_id
             })
             logger.debug('Zabbix IT service with name %s has been created', name)

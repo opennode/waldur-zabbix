@@ -1,3 +1,5 @@
+import datetime
+
 from rest_framework import status
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.response import Response
@@ -91,6 +93,21 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         def sum_without_none(xs):
             return sum(x for x in xs if x)
         return map(sum_without_none, zip(*rows))
+
+    def _get_period(self):
+        period = self.request.query_params.get('period')
+        if period is None:
+            today = datetime.date.today()
+            period = '%s-%s' % (today.year, today.month)
+        return period
+
+    def get_serializer_context(self):
+        """
+        Extra context provided to the serializer class.
+        """
+        context = super(HostViewSet, self).get_serializer_context()
+        context['period'] = self._get_period()
+        return context
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
