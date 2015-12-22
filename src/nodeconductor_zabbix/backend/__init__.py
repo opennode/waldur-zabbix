@@ -141,7 +141,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         for name in self.templates_names:
             if not models.Template.objects.filter(name=name).exists():
                 raise ZabbixBackendError('Cannot find template with name "%s".' % name)
-        if 'interface_parameters' in self.options and self.options['interface_parameters']:
+        if not self.options.get('interface_parameters'):
             raise ZabbixBackendError('Interface parameters should not be empty.')
 
     def provision_host(self, host):
@@ -180,9 +180,9 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         trigger_id = self._get_trigger_id(host.backend_id, description)
 
         service_name = self._get_service_name(host.scope.backend_id)
-        service, created = self.get_or_create_service(service_name, host.agreed_sla, trigger_id)
+        service_id, created = self.get_or_create_service(service_name, host.agreed_sla, trigger_id)
 
-        host.service_id = service['serviceid']
+        host.service_id = service_id
         host.trigger_id = trigger_id
         host.save(update_fields=['service_id', 'trigger_id'])
 
@@ -326,22 +326,22 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             raise ZabbixBackendError(message % (name, str(e)))
 
         if len(services) == 1:
-            return services[0], False
+            return services[0]['serviceid'], False
         elif len(services) > 1:
             raise ZabbixBackendError('Multiple services found with name %s' % name)
 
         try:
-            service = self.api.service.create({
+            data = self.api.service.create({
                 'algorithm': 1,
                 'name': name,
                 'showsla': 1,
                 'sortorder': 1,
-                'goodsla': agreed_sla,
+                'goodsla': six.text_type(agreed_sla),
                 'triggerid': trigger_id
             })
             logger.debug('Zabbix IT service with name %s has been created', name)
-            return service, True
-        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            return data['serviceids'][0], True
+        except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
             message = 'Cannot create Zabbix IT service with name: %s. Exception: %s'
             raise ZabbixBackendError(message % (name, str(e)))
 

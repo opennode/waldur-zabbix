@@ -87,7 +87,7 @@ def delete(host_uuid):
     Host.objects.get(uuid=host_uuid).delete()
 
 
-@shared_task
+@shared_task(name='nodeconductor.zabbix.update_sla')
 def update_sla(sla_type):
     if sla_type not in ('yearly', 'monthly'):
         logger.error('Requested unknown SLA type: %s' % sla_type)

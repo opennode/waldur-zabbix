@@ -25,6 +25,9 @@ The following rules for generation of the service settings are used:
  - interface_parameters - default parameters for hosts interface. (default: {"dns": "", "ip": "0.0.0.0", "main": 1, "port": "10050", "type": 1, "useip": 1});
  - templates_names - List of Zabbix hosts templates. (default: ["NodeConductor"]);
  - database_parameters - Zabbix database parameters. (default: {"host": "localhost", "port": "3306", "name": "zabbix", "user": "admin", "password": ""})
+ - service_triggers - Map resource type to description of trigger.
+   Then trigger is passed as argument to `service.create` method of Zabbix IT service API.
+   (default: {"OpenStack.Instance": "Missing data about the VM"})
 
 
 Example of a request:
@@ -87,10 +90,13 @@ parameters:
  - visible_name - host visible name (optional if scope is defined);
  - scope - optional url of related object, for example of OpenStack instance;
  - description - host description (optional);
- - interface_parameters - host interface parameters (optional, default value will be taken from service settings, if
-   not specified);
- - host_group_name - host group name (optional, default value will be taken from service settings if not specified);
- - templates - list of template urls (optional, default value will be taken from service settings if not specified).
+ - interface_parameters - host interface parameters (optional);
+ - host_group_name - host group name (optional);
+ - templates - list of template urls (optional).
+ - agreed_sla - optional, for example 99.99; if it is specified, Zabbix IT Service is created with trigger
+ corresponding to resource type of scope.
+
+For optional fields, such as interface_parameters, host_group_name, templates if value is not specified in request, default value will be taken from service settings.
 
 
 Example of a valid request:
@@ -186,7 +192,9 @@ Example rendering of the host object:
                     "openstack.vm.disk.size"
                 ]
             }
-        ]
+        ],
+        "agreed_sla": 91.5,
+        "actual_sla": 100.0
     }
 
 

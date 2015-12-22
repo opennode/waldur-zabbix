@@ -114,6 +114,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
     scope = GenericRelatedField(related_models=structure_models.Resource.get_all_models(), required=False)
     templates = NestedTemplateSerializer(
         queryset=models.Template.objects.all().select_related('items'), many=True, required=False)
+    agreed_sla = serializers.FloatField()
     actual_sla = serializers.SerializerMethodField()
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
@@ -153,7 +154,10 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
             if templates is None:
                 templates_names = host.service_project_link.service.settings.options.get(
                     'templates_names', backend.ZabbixRealBackend.DEFAULT_TEMPLATES_NAMES)
-                templates = models.Template.objects.filter(name__in=templates_names)
+                templates = models.Template.objects.filter(
+                    settings=host.service_project_link.service.settings,
+                    name__in=templates_names
+                )
             for template in templates:
                 host.templates.add(template)
 

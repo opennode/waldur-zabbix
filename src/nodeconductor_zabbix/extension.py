@@ -17,12 +17,12 @@ class ZabbixExtension(NodeConductorExtension):
         from datetime import timedelta
         return {
             'update-monthly-slas': {
-                'task': 'nodeconductor_zabbix.tasks.update_sla',
+                'task': 'nodeconductor.zabbix.update_sla',
                 'schedule': timedelta(minutes=5),
                 'args': ('monthly',),
             },
             'update-yearly-slas': {
-                'task': 'nodeconductor_zabbix.tasks.update_sla',
+                'task': 'nodeconductor.zabbix.update_sla',
                 'schedule': timedelta(minutes=10),
                 'args': ('yearly',),
             }
