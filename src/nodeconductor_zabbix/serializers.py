@@ -23,7 +23,9 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
                                 '"useip": 1})',
         'templates_names': 'List of Zabbix hosts templates. (default: ["NodeConductor"])',
         'database_parameters': 'Zabbix database parameters. (default: {"host": "localhost", "port": "3306", '
-                               '"name": "zabbix", "user": "admin", "password": ""})'
+                               '"name": "zabbix", "user": "admin", "password": ""})',
+        'service_triggers': 'Map resource type to trigger description in order to create service level agreement. '
+                            '(default: {"OpenStack.Instance": "Missing data about the VM"})'
     }
 
     class Meta(structure_serializers.BaseServiceSerializer.Meta):
@@ -48,6 +50,12 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
         fields['database_parameters'] = JsonField(
             initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_DATABASE_PARAMETERS),
             help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['database_parameters'],
+            required=True,
+            write_only=True,
+        )
+        fields['service_triggers'] = JsonField(
+            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_SERVICE_TRIGGERS),
+            help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['service_triggers'],
             required=True,
             write_only=True,
         )
@@ -106,12 +114,15 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
     scope = GenericRelatedField(related_models=structure_models.Resource.get_all_models(), required=False)
     templates = NestedTemplateSerializer(
         queryset=models.Template.objects.all().select_related('items'), many=True, required=False)
+    agreed_sla = serializers.FloatField()
+    actual_sla = serializers.SerializerMethodField()
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.Host
         view_name = 'zabbix-host-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates')
+            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates',
+            'agreed_sla', 'actual_sla')
 
     def get_resource_fields(self):
         return super(HostSerializer, self).get_resource_fields() + ['scope']
@@ -143,8 +154,25 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
             if templates is None:
                 templates_names = host.service_project_link.service.settings.options.get(
                     'templates_names', backend.ZabbixRealBackend.DEFAULT_TEMPLATES_NAMES)
-                templates = models.Template.objects.filter(name__in=templates_names)
+                templates = models.Template.objects.filter(
+                    settings=host.service_project_link.service.settings,
+                    name__in=templates_names
+                )
             for template in templates:
                 host.templates.add(template)
 
         return host
+
+    def get_actual_sla(self, host):
+        if 'sla_map' not in self.context:
+            period = self.context.get('period')
+            if period is None:
+                raise AttributeError('HostSerializer has to be initialized with `period` in context')
+            qs = models.SlaHistory.objects.filter(period=period)
+            if isinstance(self.instance, list):
+                qs = qs.filter(host__in=self.instance)
+            else:
+                qs = qs.filter(host=self.instance)
+            self.context['sla_map'] = {q.host_id: q.value for q in qs}
+
+        return self.context['sla_map'].get(host.id)

@@ -1,7 +1,8 @@
+import datetime
+
 from rest_framework import status
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.response import Response
-from rest_framework import serializers as rf_serializers
 
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.utils import datetime_to_timestamp
@@ -42,12 +43,7 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         return Response(stats, status=status.HTTP_200_OK)
 
     def _get_hosts(self, uuid=None):
-        invalid_states = (
-            models.Host.States.PROVISIONING_SCHEDULED,
-            models.Host.States.PROVISIONING,
-            models.Host.States.ERRED
-        )
-        hosts = self.get_queryset().exclude(backend_id='', state__in=invalid_states)
+        hosts = self.get_queryset().get_active_hosts()
         if uuid:
             hosts = hosts.filter(uuid=uuid)
         return hosts
@@ -97,6 +93,21 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         def sum_without_none(xs):
             return sum(x for x in xs if x)
         return map(sum_without_none, zip(*rows))
+
+    def _get_period(self):
+        period = self.request.query_params.get('period')
+        if period is None:
+            today = datetime.date.today()
+            period = '%s-%s' % (today.year, today.month)
+        return period
+
+    def get_serializer_context(self):
+        """
+        Extra context provided to the serializer class.
+        """
+        context = super(HostViewSet, self).get_serializer_context()
+        context['period'] = self._get_period()
+        return context
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):

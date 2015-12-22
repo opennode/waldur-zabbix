@@ -1,4 +1,4 @@
-from nodeconductor.core.permissions import FilteredCollaboratorsPermissionLogic
+from nodeconductor.core.permissions import FilteredCollaboratorsPermissionLogic, StaffPermissionLogic
 from nodeconductor.structure import models as structure_models, perms as structure_perms
 
 
@@ -22,4 +22,6 @@ PERMISSION_LOGICS = (
         any_permission=True,
     )),
     ('nodeconductor_zabbix.Host', structure_perms.resource_permission_logic),
+    ('nodeconductor_zabbix.SlaHistory', StaffPermissionLogic(any_permission=True)),
+    ('nodeconductor_zabbix.SlaHistoryEvent', StaffPermissionLogic(any_permission=True)),
 )

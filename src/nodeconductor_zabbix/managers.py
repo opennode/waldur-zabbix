@@ -9,3 +9,12 @@ class HostManager(GenericKeyMixin, StructureManager):
     def get_available_models(self):
         """ Return list of models that are acceptable """
         return Resource.get_all_models()
+
+    def get_active_hosts(self):
+        INVALID_STATES = (
+            Resource.States.PROVISIONING_SCHEDULED,
+            Resource.States.PROVISIONING,
+            Resource.States.DELETING,
+            Resource.States.ERRED
+        )
+        return self.exclude(backend_id='', state__in=INVALID_STATES)
