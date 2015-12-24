@@ -312,14 +312,14 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             raise ZabbixBackendError(
                 'Cannot get or create host with parameters: %s. Exception: %s' % (host_parameters, str(e)))
 
-    def get_services(self):
+    def get_stale_services(self):
         """
-        Get name and id of Zabbix IT services
+        Get name and id of Zabbix IT services without triggers
         """
         try:
-            services = self.api.service.get(output=['name', 'serviceid'])
+            services = self.api.service.get(output=['name', 'serviceid', 'triggerid'])
             return [{'name': service['name'], 'id': service['serviceid']}
-                    for service in services]
+                    for service in services if service['triggerid'] == '0']
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             logger.exception('Cannot get Zabbix IT services')
             six.reraise(ZabbixBackendError, e)
@@ -379,7 +379,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         Batch delete Zabbix IT services
         """
         try:
-            self.api.service.delete(service_ids)
+            self.api.service.delete(*service_ids)
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             logger.exception('Can not delete Zabbix service with ID %s.', service_ids)
             six.reraise(ZabbixBackendError, e)

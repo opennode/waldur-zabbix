@@ -16,10 +16,10 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
     serializer_class = serializers.ServiceSerializer
 
     @detail_route(methods=['GET', 'DELETE'])
-    def services(self, request, uuid):
+    def stale_services(self, request, uuid):
         service = self.get_object()
         backend = service.get_backend()
-        services = backend.get_services()
+        services = backend.get_stale_services()
         if request.method == 'GET':
             return Response(services, status=status.HTTP_200_OK)
         elif request.method == 'DELETE':

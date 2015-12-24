@@ -294,12 +294,12 @@ Example request and response:
     ]
 
 
-Cleanup Zabbix IT services
---------------------------
+Cleanup stale IT services
+-------------------------
 
 Sometimes stale Zabbix IT services (used for SLA calculation) remain in Zabbix, polluting the data.
 
-- GET **/api/zabbix/<service_uuid>/services/**
+- GET **/api/zabbix/<service_uuid>/stale_services/**
   Returns `id` and `name` of all Zabbix IT services that exist in that Zabbix server.
 
 Example request and response:
@@ -327,7 +327,7 @@ Example request and response:
         }
     ]
 
-- DELETE **/api/zabbix/<service_uuid>/services/?id=id1&id=id2**
+- DELETE **/api/zabbix/<service_uuid>/stale_services/?id=id1&id=id2**
   Deletes Zabbix IT services with marked IDs.
 
 Example request and response:
