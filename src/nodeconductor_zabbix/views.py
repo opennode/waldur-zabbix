@@ -23,14 +23,13 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
         if request.method == 'GET':
             return Response(services, status=status.HTTP_200_OK)
         elif request.method == 'DELETE':
-            required_ids = request.query_params.getlist('id')
             all_ids = [service['id'] for service in services]
-            ids = set(required_ids) & set(all_ids)
+            ids = [id for id in request.query_params.getlist('id') if id in all_ids]
             if not ids:
-                raise ValidationError({'detail': 'Valid services not found'})
-            message = {'detail': 'Services %s are deleted' % ', '.join(ids)}
+                raise ValidationError({'detail': 'Valid services not found.'})
+            message = 'Services %s are deleted.' % ', '.join(ids)
             backend.delete_services(ids)
-            return Response(message, status=status.HTTP_204_NO_CONTENT)
+            return Response({'detail': message}, status=status.HTTP_204_NO_CONTENT)
 
 
 class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkViewSet):

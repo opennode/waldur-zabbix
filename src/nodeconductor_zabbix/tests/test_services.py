@@ -29,10 +29,11 @@ class ServiceDeletionTest(test.APITransactionTestCase):
             {'id': '3', 'name': 'Availability of 3'}
         ]
 
-        service_ids = {'1', '2', '3'}
+        service_ids = ['1', '2', '3']
         params = urllib.urlencode({'id': service_ids}, doseq=True)
         url = self.url + '?' + params
         response = self.client.delete(url)
 
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
+        self.assertEqual({'detail': 'Services 1, 2, 3 are deleted.'}, response.data)
         mock_backend().delete_services.assert_called_once_with(service_ids)

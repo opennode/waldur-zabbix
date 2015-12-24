@@ -339,3 +339,5 @@ Example request and response:
     Accept: application/json
     Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
     Host: example.com
+
+    Services 188, 189 are deleted.
