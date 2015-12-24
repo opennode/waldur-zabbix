@@ -3,6 +3,7 @@ import datetime
 from rest_framework import status
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.response import Response
+from rest_framework.serializers import ValidationError
 
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.utils import datetime_to_timestamp
@@ -13,6 +14,23 @@ from . import models, serializers, filters
 class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
     queryset = models.ZabbixService.objects.all()
     serializer_class = serializers.ServiceSerializer
+
+    @detail_route(methods=['GET', 'DELETE'])
+    def services(self, request, uuid):
+        service = self.get_object()
+        backend = service.get_backend()
+        services = backend.get_services()
+        if request.method == 'GET':
+            return Response(services, status=status.HTTP_200_OK)
+        elif request.method == 'DELETE':
+            required_ids = request.query_params.getlist('id')
+            all_ids = [service['id'] for service in services]
+            ids = set(required_ids) & set(all_ids)
+            if not ids:
+                raise ValidationError({'detail': 'Valid services not found'})
+            message = {'detail': 'Services %s are deleted' % ', '.join(ids)}
+            backend.delete_services(ids)
+            return Response(message, status=status.HTTP_204_NO_CONTENT)
 
 
 class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkViewSet):

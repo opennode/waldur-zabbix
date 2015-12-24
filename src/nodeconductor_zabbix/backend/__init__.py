@@ -312,6 +312,18 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             raise ZabbixBackendError(
                 'Cannot get or create host with parameters: %s. Exception: %s' % (host_parameters, str(e)))
 
+    def get_services(self):
+        """
+        Get name and id of Zabbix IT services
+        """
+        try:
+            services = self.api.service.get(output=['name', 'serviceid'])
+            return [{'name': service['name'], 'id': service['serviceid']}
+                    for service in services]
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            logger.exception('Cannot get Zabbix IT services')
+            six.reraise(ZabbixBackendError, e)
+
     def get_or_create_service(self, name, agreed_sla, trigger_id):
         """ Get or create Zabbix IT service with given parameters.
 
@@ -359,15 +371,18 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                 output=['triggerid'])
             return data[0]['triggerid']
         except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
-            message = 'No trigger for host %s and description %s'
-            raise ZabbixBackendError(message % (host_id, description))
+            logger.exception('No trigger for host %s and description %s', host_id, description)
+            six.reraise(ZabbixBackendError, e)
 
-    def delete_service(self, service_id):
+    def delete_services(self, service_ids):
+        """
+        Batch delete Zabbix IT services
+        """
         try:
-            self.api.service.delete(service_id)
+            self.api.service.delete(service_ids)
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
-            message = 'Can not delete Zabbix service with ID %s. Exception: %s'
-            raise ZabbixBackendError(message, service_id)
+            logger.exception('Can not delete Zabbix service with ID %s.', service_ids)
+            six.reraise(ZabbixBackendError, e)
 
     def get_sla(self, service_id, start_time, end_time):
         try:

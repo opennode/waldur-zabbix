@@ -55,7 +55,7 @@ def destroy_host(host_uuid, transition_entity=None):
     backend.destroy_host(host)
 
     if host.service_id:
-        backend.delete_service(host.service_id)
+        backend.delete_services([host.service_id])
 
 
 @shared_task
