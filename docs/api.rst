@@ -205,7 +205,7 @@ To delete host - issue DELETE request against **/api/zabbix-hosts/<host_uuid>/**
 
 
 Host statistics
-----------------
+---------------
 
 URL: **/api/zabbix-hosts/<host_uuid>/items_history/**
 
@@ -292,3 +292,52 @@ Example request and response:
             "value": 50.3574
         }
     ]
+
+
+Cleanup stale IT services
+-------------------------
+
+Sometimes stale Zabbix IT services (used for SLA calculation) remain in Zabbix, polluting the data.
+
+- GET **/api/zabbix/<service_uuid>/stale_services/**
+  Returns `id` and `name` of all Zabbix IT services that exist in that Zabbix server.
+
+Example request and response:
+
+.. code-block:: http
+
+    GET /api/zabbix/c2c29036f6e441908e5f7ca0f2441431/services/ HTTP/1.1
+    Content-Type: application/json
+    Accept: application/json
+    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
+    Host: example.com
+
+    [
+        {
+            'name': 'Availability of 06e4b56f-0ec6-4c47-97d8-35b87341e9da',
+            'id': '188'
+        },
+        {
+            'name': 'Availability of 62db4587-9c55-4d79-95f5-adb759fa8344',
+            'id': '189'
+        },
+        {
+            'name': 'Availability of a903bdf7-6e93-40fc-9c72-f7857711d4b6',
+            'id': '190'
+        }
+    ]
+
+- DELETE **/api/zabbix/<service_uuid>/stale_services/?id=id1&id=id2**
+  Deletes Zabbix IT services with marked IDs.
+
+Example request and response:
+
+.. code-block:: http
+
+    DELETE /api/zabbix/c2c29036f6e441908e5f7ca0f2441431/services/?id=188&id=189 HTTP/1.1
+    Content-Type: application/json
+    Accept: application/json
+    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
+    Host: example.com
+
+    Services 188, 189 are deleted.
