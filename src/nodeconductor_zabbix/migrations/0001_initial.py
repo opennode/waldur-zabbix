@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 from django.db import models, migrations
 import nodeconductor.core.models
+import nodeconductor.core.validators
 import django_fsm
 import jsonfield.fields
 import django.db.models.deletion
@@ -27,7 +28,7 @@ class Migration(migrations.Migration):
                 ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, verbose_name='created', editable=False)),
                 ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, verbose_name='modified', editable=False)),
                 ('description', models.CharField(max_length=500, verbose_name='description', blank=True)),
-                ('name', models.CharField(max_length=64, verbose_name='name')),
+                ('name', models.CharField(max_length=64, verbose_name='name', validators=[nodeconductor.core.validators.validate_name])),
                 ('uuid', uuidfield.fields.UUIDField(unique=True, max_length=32, editable=False, blank=True)),
                 ('backend_id', models.CharField(max_length=255, blank=True)),
                 ('start_time', models.DateTimeField(null=True, blank=True)),
@@ -47,7 +48,7 @@ class Migration(migrations.Migration):
             name='ZabbixService',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('name', models.CharField(max_length=150, verbose_name='name')),
+                ('name', models.CharField(max_length=150, verbose_name='name', validators=[nodeconductor.core.validators.validate_name])),
                 ('uuid', uuidfield.fields.UUIDField(unique=True, max_length=32, editable=False, blank=True)),
                 ('available_for_all', models.BooleanField(default=False, help_text='Service will be automatically added to all customers projects if it is available for all')),
                 ('customer', models.ForeignKey(to='structure.Customer')),
