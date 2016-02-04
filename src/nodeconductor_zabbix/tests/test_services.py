@@ -36,4 +36,4 @@ class ServiceDeletionTest(test.APITransactionTestCase):
 
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
         self.assertEqual({'detail': 'Services 1, 2, 3 are deleted.'}, response.data)
-        mock_backend().delete_services.assert_called_once_with(*service_ids)
+        mock_backend().delete_services.assert_called_once_with(service_ids)
