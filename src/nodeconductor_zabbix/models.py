@@ -21,9 +21,6 @@ class ZabbixService(structure_models.Service):
 class ZabbixServiceProjectLink(structure_models.ServiceProjectLink):
     service = models.ForeignKey(ZabbixService)
 
-    class Meta:
-        unique_together = ('service', 'project')
-
     @classmethod
     def get_url_name(cls):
         return 'zabbix-spl'
