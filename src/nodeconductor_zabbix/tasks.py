@@ -12,18 +12,18 @@ from .models import Host, SlaHistory
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='nodeconductor.zabbix.provision')
-def provision(host_uuid):
-    provision_host.apply_async(
+@shared_task(name='nodeconductor.zabbix.provision_host')
+def provision_host(host_uuid):
+    begin_provision_host.apply_async(
         args=(host_uuid,),
         link=set_online.si(host_uuid),
         link_error=set_erred.si(host_uuid)
     )
 
 
-@shared_task(name='nodeconductor.zabbix.destroy')
-def destroy(host_uuid):
-    destroy_host.apply_async(
+@shared_task(name='nodeconductor.zabbix.destroy_host')
+def destroy_host(host_uuid):
+    begin_destroy_host.apply_async(
         args=(host_uuid,),
         link=delete.si(host_uuid),
         link_error=set_erred.si(host_uuid),
@@ -40,7 +40,7 @@ def update_visible_name(host_uuid):
 @shared_task
 @transition(Host, 'begin_provisioning')
 @save_error_message
-def provision_host(host_uuid, transition_entity=None):
+def begin_provision_host(host_uuid, transition_entity=None):
     host = transition_entity
     backend = host.get_backend()
     backend.provision_host(host)
@@ -49,13 +49,31 @@ def provision_host(host_uuid, transition_entity=None):
 @shared_task
 @transition(Host, 'begin_deleting')
 @save_error_message
-def destroy_host(host_uuid, transition_entity=None):
+def begin_destroy_host(host_uuid, transition_entity=None):
     host = transition_entity
     backend = host.get_backend()
     backend.destroy_host(host)
 
     if host.service_id:
         backend.delete_services([host.service_id])
+
+
+@shared_task(name='nodeconductor.zabbix.provision_itservice')
+def provision_itservice(itservice_uuid):
+    begin_provision_itservice.apply_async(
+        args=(itservice_uuid,),
+        link=set_online.si(itservice_uuid),
+        link_error=set_erred.si(itservice_uuid)
+    )
+
+
+@shared_task
+@transition(Host, 'begin_provisioning')
+@save_error_message
+def begin_provision_itservice(itservice_uuid, transition_entity=None):
+    itservice = transition_entity
+    backend = itservice.get_backend()
+    backend.provision_itservice(itservice)
 
 
 @shared_task

@@ -40,10 +40,6 @@ class Host(structure_models.Resource):
 
     objects = managers.HostManager('scope')
 
-    agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
-    service_id = models.CharField(max_length=255, blank=True)
-    trigger_id = models.CharField(max_length=255, blank=True)
-
     @classmethod
     def get_url_name(cls):
         return 'zabbix-host'
@@ -75,6 +71,25 @@ class Template(structure_models.ServiceProperty):
         return 'zabbix-template'
 
 
+class Trigger(structure_models.ServiceProperty):
+    template = models.ForeignKey(Template, related_name='triggers')
+
+
+# Zabbix trigger name max length - 255
+Trigger._meta.get_field('name').max_length = 255
+
+
+class ITService(structure_models.Resource):
+    host = models.ForeignKey(Host)
+    trigger = models.ForeignKey(Trigger)
+    agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
+    service_project_link = models.ForeignKey(ZabbixServiceProjectLink, related_name='itservice', on_delete=models.PROTECT)
+
+    @classmethod
+    def get_url_name(cls):
+        return 'zabbix-itservice'
+
+
 class Item(models.Model):
     class ValueTypes:
         FLOAT = 0
@@ -91,7 +106,7 @@ class Item(models.Model):
             (TEXT, 'Text')
         )
 
-    name = models.CharField(max_length=64)
+    name = models.CharField(max_length=255)
     template = models.ForeignKey(Template, related_name='items')
     backend_id = models.CharField(max_length=64)
     value_type = models.IntegerField(choices=ValueTypes.CHOICES)

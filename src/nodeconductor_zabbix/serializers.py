@@ -53,12 +53,6 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
             required=True,
             write_only=True,
         )
-        fields['service_triggers'] = JsonField(
-            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_SERVICE_TRIGGERS),
-            help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['service_triggers'],
-            required=True,
-            write_only=True,
-        )
         fields['backend_url'].required = True
         fields['username'].required = True
         fields['password'].required = True
@@ -78,17 +72,21 @@ class ServiceProjectLinkSerializer(structure_serializers.BaseServiceProjectLinkS
 class TemplateSerializer(structure_serializers.BasePropertySerializer):
 
     items = serializers.SerializerMethodField()
+    triggers = serializers.SerializerMethodField()
 
     class Meta(object):
         model = models.Template
         view_name = 'zabbix-template-detail'
-        fields = ('url', 'uuid', 'name', 'items')
+        fields = ('url', 'uuid', 'name', 'items', 'triggers')
         extra_kwargs = {
             'url': {'lookup_field': 'uuid'},
         }
 
     def get_items(self, template):
         return template.items.all().values_list('name', flat=True)
+
+    def get_triggers(self, template):
+        return template.triggers.all().values_list('name', flat=True)
 
 
 class NestedTemplateSerializer(TemplateSerializer, HyperlinkedRelatedModelSerializer):
@@ -114,15 +112,12 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
     scope = GenericRelatedField(related_models=structure_models.Resource.get_all_models(), required=False)
     templates = NestedTemplateSerializer(
         queryset=models.Template.objects.all().select_related('items'), many=True, required=False)
-    agreed_sla = serializers.FloatField()
-    actual_sla = serializers.SerializerMethodField()
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.Host
         view_name = 'zabbix-host-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates',
-            'agreed_sla', 'actual_sla')
+            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates')
 
     def get_resource_fields(self):
         return super(HostSerializer, self).get_resource_fields() + ['scope']
@@ -163,16 +158,75 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
         return host
 
+
+class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
+    service = serializers.HyperlinkedRelatedField(
+        source='service_project_link.service',
+        view_name='zabbix-detail',
+        read_only=True,
+        lookup_field='uuid')
+
+    service_project_link = serializers.HyperlinkedRelatedField(
+        view_name='zabbix-spl-detail',
+        queryset=models.ZabbixServiceProjectLink.objects.all(),
+        write_only=True)
+
+    host = serializers.HyperlinkedRelatedField(
+        view_name='zabbix-host-detail',
+        queryset=models.Host.objects.all(),
+        lookup_field='uuid')
+
+    trigger = serializers.HyperlinkedRelatedField(
+        view_name='zabbix-trigger-detail',
+        queryset=models.Trigger.objects.all(),
+        lookup_field='uuid')
+
+    trigger_name = serializers.ReadOnlyField(source='trigger.name')
+
+    actual_sla = serializers.SerializerMethodField()
+
+    class Meta(structure_serializers.BaseResourceSerializer.Meta):
+        model = models.ITService
+        view_name = 'zabbix-itservice-detail'
+        fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
+            'host', 'agreed_sla', 'actual_sla', 'trigger', 'trigger_name')
+        protected_fields = structure_serializers.BaseResourceSerializer.Meta.protected_fields + (
+            'trigger', 'host'
+        )
+
     def get_actual_sla(self, host):
         if 'sla_map' not in self.context:
             period = self.context.get('period')
             if period is None:
-                raise AttributeError('HostSerializer has to be initialized with `period` in context')
+                raise AttributeError('ITServiceSerializer has to be initialized with `period` in context')
             qs = models.SlaHistory.objects.filter(period=period)
             if isinstance(self.instance, list):
-                qs = qs.filter(host__in=self.instance)
+                qs = qs.filter(host__in=self.instance.host)
             else:
-                qs = qs.filter(host=self.instance)
+                qs = qs.filter(host=self.instance.host)
             self.context['sla_map'] = {q.host_id: q.value for q in qs}
 
         return self.context['sla_map'].get(host.id)
+
+    def validate(self, attrs):
+        host = attrs['host']
+        trigger = attrs['trigger']
+
+        if host.template != trigger.template:
+            raise serializers.ValidationError("Host and trigger should relate to the same template")
+
+        return attrs
+
+
+class TriggerSerializer(structure_serializers.BasePropertySerializer):
+    template = serializers.HyperlinkedRelatedField(
+        view_name='zabbix-template-detail',
+        read_only=True,
+        lookup_field='uuid')
+
+    class Meta(structure_serializers.BasePropertySerializer.Meta):
+        model = models.Trigger
+        fields = ('url', 'uuid', 'name', 'template')
+        extra_kwargs = {
+            'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-trigger-detail'},
+        }

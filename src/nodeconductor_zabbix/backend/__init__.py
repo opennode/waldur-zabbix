@@ -12,7 +12,7 @@ from requests.packages.urllib3 import exceptions
 
 from nodeconductor.core.tasks import send_task
 from nodeconductor.core.utils import datetime_to_timestamp
-from nodeconductor.structure import ServiceBackend, ServiceBackendError, SupportedServices
+from nodeconductor.structure import ServiceBackend, ServiceBackendError
 from ..import models
 
 
@@ -46,10 +46,11 @@ class ZabbixBackend(object):
 
 class ZabbixBaseBackend(ServiceBackend):
 
-    def provision(self, host):
-        send_task('zabbix', 'provision')(
-            host.uuid.hex,
-        )
+    def dispatch_provision_host(self, host):
+        send_task('zabbix', 'provision_host')(host.uuid.hex)
+
+    def dispatch_provision_itservice(self, itservice):
+        send_task('zabbix', 'provision_itservice')(itservice.uuid.hex)
 
     def destroy(self, host, force=False):
         if force:
@@ -59,9 +60,7 @@ class ZabbixBaseBackend(ServiceBackend):
         # Skip stopping, because host can be deleted directly from state ONLINE
         host.schedule_deletion()
         host.save()
-        send_task('zabbix', 'destroy')(
-            host.uuid.hex,
-        )
+        send_task('zabbix', 'destroy_host')(host.uuid.hex)
 
     def update_visible_name(self, host):
         new_visible_name = host.get_visible_name_from_scope(host.scope)
@@ -107,14 +106,6 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         'password': ''
     }
 
-    """
-    Map resource type to description of trigger.
-    Then trigger is passed as argument to service.create method of Zabbix IT service API.
-    """
-    DEFAULT_SERVICE_TRIGGERS = {
-        'OpenStack.Instance': 'Missing data about the VM'
-    }
-
     TREND_DELAY_SECONDS = 60 * 60 # One hour
     HISTORY_DELAY_SECONDS = 15 * 60
 
@@ -125,7 +116,6 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         self.templates_names = self.options.get('templates_names', self.DEFAULT_TEMPLATES_NAMES)
         self.interface_parameters = self.options.get('interface_parameters', self.DEFAULT_INTERFACE_PARAMETERS)
         self.database_parameters = self.options.get('database_parameters', self.DEFAULT_DATABASE_PARAMETERS)
-        self.service_triggers = self.options.get('service_triggers', self.DEFAULT_SERVICE_TRIGGERS)
 
     @property
     def api(self):
@@ -134,6 +124,13 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                                       self.settings.username,
                                       self.settings.password)
         return self._api
+
+    def ping(self):
+        try:
+            self.api.api_version()
+            return True
+        except:
+            return False
 
     def sync(self):
         self._get_or_create_group_id(self.host_group_name)
@@ -167,24 +164,14 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         host.backend_id = zabbix_host_id
         host.save()
 
-        if host.agreed_sla:
-            self.provision_service(host)
+    def provision_itservice(self, itservice):
+        service_name = self._get_service_name(itservice.host.scope.backend_id)
+        trigger_id = self._get_trigger_id(itservice.host.backend_id, itservice.trigger.description)
 
-    def provision_service(self, host):
-        resource_type = SupportedServices.get_name_for_model(host.scope)
-        description = self.service_triggers.get(resource_type)
-        if not description:
-            logger.warning('Zabbix IT service is not created because trigger '
-                           'description for resource with type %s is missing', resource_type)
-            return
-        trigger_id = self._get_trigger_id(host.backend_id, description)
+        service_id = self.create_itservice(service_name, itservice.agreed_sla, trigger_id)
 
-        service_name = self._get_service_name(host.scope.backend_id)
-        service_id, created = self.get_or_create_service(service_name, host.agreed_sla, trigger_id)
-
-        host.service_id = service_id
-        host.trigger_id = trigger_id
-        host.save(update_fields=['service_id', 'trigger_id'])
+        itservice.backend_id = service_id
+        itservice.save(update_fields=['backend_id'])
 
     def destroy_host(self, host):
         try:
@@ -225,16 +212,41 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         for template in models.Template.objects.all():
             try:
                 self.pull_items(template)
+                self.pull_triggers(template)
             except ZabbixBackendError as e:
                 logger.error(str(e))
                 errors.append(e)
         if errors:
-            raise ZabbixBackendError('Cannot pull template items.')
+            raise ZabbixBackendError('Cannot pull template items: %s', errors)
         else:
             logger.info('Successfully pulled Zabbix items.')
 
+    def pull_triggers(self, template):
+        """
+        Update existing NodeConductor triggers for Zabbix templates
+        """
+        logger.debug('About to pull Zabbix triggers for template %s', template.name)
+        try:
+            zabbix_triggers = self.api.trigger.get(output=['description'], templateids=template.backend_id)
+        except pyzabbix.ZabbixAPIException as e:
+            message = 'Cannot pull template triggers for template %s. Exception: %s' % (template.name, e)
+            raise ZabbixBackendError(message)
+
+        # Delete stale triggers
+        zabbix_trigger_ids = set([i['triggerid'] for i in zabbix_triggers])
+        template.triggers.exclude(backend_id__in=zabbix_trigger_ids).delete()
+
+        # Update or create triggers
+        for zabbix_trigger in zabbix_triggers:
+            template.triggers.update_or_create(
+                backend_id=zabbix_trigger['triggerid'],
+                defaults={'name': zabbix_trigger['description']})
+        logger.debug('Successfully pulled Zabbix triggers for template %s.', template.name)
+
     def pull_items(self, template):
-        """ Update existing NodeConductor items from Zabbix templates """
+        """
+        Update existing NodeConductor items for Zabbix templates
+        """
         logger.debug('About to pull Zabbix items for template %s', template.name)
         try:
             fields = ('itemid', 'key_', 'value_type', 'units', 'history', 'delay')
@@ -324,6 +336,26 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             logger.exception('Cannot get Zabbix IT services')
             six.reraise(ZabbixBackendError, e)
 
+    def create_itservice(self, name, agreed_sla, trigger_id):
+        """
+        Create Zabbix IT service with given parameters.
+        """
+
+        try:
+            data = self.api.service.create({
+                'algorithm': 1,
+                'name': name,
+                'showsla': 1,
+                'sortorder': 1,
+                'goodsla': six.text_type(agreed_sla),
+                'triggerid': trigger_id
+            })
+            logger.debug('Zabbix IT service with name %s has been created', name)
+            return data['serviceids'][0]
+        except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
+            message = 'Cannot create Zabbix IT service with name: %s. Exception: %s'
+            raise ZabbixBackendError(message % (name, str(e)))
+
     def get_or_create_service(self, name, agreed_sla, trigger_id):
         """ Get or create Zabbix IT service with given parameters.
 
@@ -342,20 +374,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         elif len(services) > 1:
             raise ZabbixBackendError('Multiple services found with name %s' % name)
 
-        try:
-            data = self.api.service.create({
-                'algorithm': 1,
-                'name': name,
-                'showsla': 1,
-                'sortorder': 1,
-                'goodsla': six.text_type(agreed_sla),
-                'triggerid': trigger_id
-            })
-            logger.debug('Zabbix IT service with name %s has been created', name)
-            return data['serviceids'][0], True
-        except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
-            message = 'Cannot create Zabbix IT service with name: %s. Exception: %s'
-            raise ZabbixBackendError(message % (name, str(e)))
+        return self.create_itservice(name, agreed_sla, trigger_id), True
 
     def _get_service_name(self, backend_id):
         return 'Availability of %s' % backend_id

@@ -47,7 +47,7 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
     def perform_provision(self, serializer):
         resource = serializer.save()
         backend = resource.get_backend()
-        backend.provision(resource)
+        backend.dispatch_provision_host(resource)
 
     @list_route()
     def aggregated_items_history(self, request):
@@ -111,6 +111,16 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
             return sum(x for x in xs if x)
         return map(sum_without_none, zip(*rows))
 
+
+class ITServiceViewSet(structure_views.BaseOnlineResourceViewSet):
+    queryset = models.ITService.objects.all()
+    serializer_class = serializers.ITServiceSerializer
+
+    def perform_provision(self, serializer):
+        resource = serializer.save()
+        backend = resource.get_backend()
+        backend.dispatch_provision_itservice(resource)
+
     def _get_period(self):
         period = self.request.query_params.get('period')
         if period is None:
@@ -120,9 +130,9 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
 
     def get_serializer_context(self):
         """
-        Extra context provided to the serializer class.
+        Add period to context.
         """
-        context = super(HostViewSet, self).get_serializer_context()
+        context = super(ITServiceViewSet, self).get_serializer_context()
         context['period'] = self._get_period()
         return context
 
@@ -130,4 +140,10 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.Template.objects.all().select_related('items')
     serializer_class = serializers.TemplateSerializer
+    lookup_field = 'uuid'
+
+
+class TriggerViewSet(structure_views.BaseServicePropertyViewSet):
+    queryset = models.Trigger.objects.all()
+    serializer_class = serializers.TriggerSerializer
     lookup_field = 'uuid'
