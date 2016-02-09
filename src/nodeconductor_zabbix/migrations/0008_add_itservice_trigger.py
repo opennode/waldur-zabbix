@@ -48,7 +48,7 @@ class Migration(migrations.Migration):
             name='Trigger',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('name', models.CharField(max_length=150, verbose_name='name', validators=[nodeconductor.core.validators.validate_name])),
+                ('name', models.CharField(max_length=255, verbose_name='name', validators=[nodeconductor.core.validators.validate_name])),
                 ('uuid', uuidfield.fields.UUIDField(unique=True, max_length=32, editable=False, blank=True)),
                 ('backend_id', models.CharField(max_length=255, db_index=True)),
                 ('settings', models.ForeignKey(related_name='+', to='structure.ServiceSettings')),
@@ -84,13 +84,13 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='item',
             name='name',
-            field=models.CharField(max_length=255, verbose_name='name', validators=[nodeconductor.core.validators.validate_name]),
+            field=models.CharField(max_length=255),
             preserve_default=True,
         ),
         migrations.AddField(
             model_name='itservice',
             name='service_project_link',
-            field=models.ForeignKey(related_name='itservice', on_delete=django.db.models.deletion.PROTECT, to='nodeconductor_zabbix.ZabbixServiceProjectLink'),
+            field=models.ForeignKey(related_name='itservice', on_delete=models.deletion.PROTECT, to='nodeconductor_zabbix.ZabbixServiceProjectLink'),
             preserve_default=False,
         )
     ]
