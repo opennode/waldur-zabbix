@@ -80,7 +80,7 @@ Trigger._meta.get_field('name').max_length = 255
 
 
 class ITService(structure_models.Resource):
-    host = models.ForeignKey(Host)
+    host = models.ForeignKey(Host, on_delete=models.PROTECT)
     trigger = models.ForeignKey(Trigger)
     agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
     service_project_link = models.ForeignKey(ZabbixServiceProjectLink, related_name='itservice', on_delete=models.PROTECT)

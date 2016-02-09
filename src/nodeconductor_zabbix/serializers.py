@@ -201,7 +201,8 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
                 raise AttributeError('ITServiceSerializer has to be initialized with `period` in context')
             qs = models.SlaHistory.objects.filter(period=period)
             if isinstance(self.instance, list):
-                qs = qs.filter(host__in=self.instance.host)
+                hosts = [service.host_id for service in self.instance]
+                qs = qs.filter(host_id__in=hosts)
             else:
                 qs = qs.filter(host=self.instance.host)
             self.context['sla_map'] = {q.host_id: q.value for q in qs}
@@ -212,8 +213,8 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
         host = attrs['host']
         trigger = attrs['trigger']
 
-        if host.template != trigger.template:
-            raise serializers.ValidationError("Host and trigger should relate to the same template")
+        if not host.templates.filter(id=trigger.template_id).exists():
+            raise serializers.ValidationError("Host templates should contain trigger's template")
 
         return attrs
 

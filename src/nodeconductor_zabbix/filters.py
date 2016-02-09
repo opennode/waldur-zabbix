@@ -1,5 +1,8 @@
+import django_filters
+
 from nodeconductor.core import filters as core_filters
 from nodeconductor.structure import models as structure_models
+from nodeconductor.structure.filters import BaseServicePropertyFilter
 
 
 class HostScopeFilterBackend(core_filters.GenericKeyFilterBackend):
@@ -9,3 +12,7 @@ class HostScopeFilterBackend(core_filters.GenericKeyFilterBackend):
 
     def get_field_name(self):
         return 'scope'
+
+
+class TriggerFilter(BaseServicePropertyFilter):
+    template = django_filters.CharFilter(name='template__uuid')

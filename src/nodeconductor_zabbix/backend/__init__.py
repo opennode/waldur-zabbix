@@ -46,21 +46,29 @@ class ZabbixBackend(object):
 
 class ZabbixBaseBackend(ServiceBackend):
 
-    def dispatch_provision_host(self, host):
-        send_task('zabbix', 'provision_host')(host.uuid.hex)
+    def provision(self, resource):
+        if isinstance(resource, models.Host):
+            send_task('zabbix', 'provision_host')(resource.uuid.hex)
+        elif isinstance(resource, models.ITService):
+            send_task('zabbix', 'provision_itservice')(resource.uuid.hex)
+        else:
+            raise NotImplementedError
 
-    def dispatch_provision_itservice(self, itservice):
-        send_task('zabbix', 'provision_itservice')(itservice.uuid.hex)
-
-    def destroy(self, host, force=False):
+    def destroy(self, resource, force=False):
         if force:
-            host.delete()
+            resource.delete()
             return
 
         # Skip stopping, because host can be deleted directly from state ONLINE
-        host.schedule_deletion()
-        host.save()
-        send_task('zabbix', 'destroy_host')(host.uuid.hex)
+        resource.schedule_deletion()
+        resource.save()
+
+        if isinstance(resource, models.Host):
+            send_task('zabbix', 'destroy_host')(resource.uuid.hex)
+        elif isinstance(resource, models.ITService):
+            send_task('zabbix', 'destroy_itservice')(resource.uuid.hex)
+        else:
+            raise NotImplementedError
 
     def update_visible_name(self, host):
         new_visible_name = host.get_visible_name_from_scope(host.scope)
@@ -165,8 +173,8 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         host.save()
 
     def provision_itservice(self, itservice):
-        service_name = self._get_service_name(itservice.host.scope.backend_id)
-        trigger_id = self._get_trigger_id(itservice.host.backend_id, itservice.trigger.description)
+        service_name = itservice.name or self._get_service_name(itservice.host.scope.backend_id)
+        trigger_id = self._get_trigger_id(itservice.host.backend_id, itservice.trigger.name)
 
         service_id = self.create_itservice(service_name, itservice.agreed_sla, trigger_id)
 
@@ -240,6 +248,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         for zabbix_trigger in zabbix_triggers:
             template.triggers.update_or_create(
                 backend_id=zabbix_trigger['triggerid'],
+                settings=template.settings,
                 defaults={'name': zabbix_trigger['description']})
         logger.debug('Successfully pulled Zabbix triggers for template %s.', template.name)
 
@@ -392,6 +401,9 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
             logger.exception('No trigger for host %s and description %s', host_id, description)
             six.reraise(ZabbixBackendError, e)
+
+    def delete_service(self, serviceid):
+        return self.delete_services([serviceid])
 
     def delete_services(self, service_ids):
         """

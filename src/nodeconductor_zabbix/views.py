@@ -8,6 +8,7 @@ from rest_framework.serializers import ValidationError
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.structure import views as structure_views
+
 from . import models, serializers, filters
 
 
@@ -37,17 +38,19 @@ class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkView
     serializer_class = serializers.ServiceProjectLinkSerializer
 
 
-class HostViewSet(structure_views.BaseOnlineResourceViewSet):
-    queryset = models.Host.objects.all()
-    serializer_class = serializers.HostSerializer
-    filter_backends = structure_views.BaseOnlineResourceViewSet.filter_backends + (
-        filters.HostScopeFilterBackend,
-    )
-
+class BaseZabbixResourceViewSet(structure_views.BaseOnlineResourceViewSet):
     def perform_provision(self, serializer):
         resource = serializer.save()
         backend = resource.get_backend()
-        backend.dispatch_provision_host(resource)
+        backend.provision(resource)
+
+
+class HostViewSet(BaseZabbixResourceViewSet):
+    queryset = models.Host.objects.all()
+    serializer_class = serializers.HostSerializer
+    filter_backends = BaseZabbixResourceViewSet.filter_backends + (
+        filters.HostScopeFilterBackend,
+    )
 
     @list_route()
     def aggregated_items_history(self, request):
@@ -112,14 +115,9 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         return map(sum_without_none, zip(*rows))
 
 
-class ITServiceViewSet(structure_views.BaseOnlineResourceViewSet):
+class ITServiceViewSet(BaseZabbixResourceViewSet):
     queryset = models.ITService.objects.all()
     serializer_class = serializers.ITServiceSerializer
-
-    def perform_provision(self, serializer):
-        resource = serializer.save()
-        backend = resource.get_backend()
-        backend.dispatch_provision_itservice(resource)
 
     def _get_period(self):
         period = self.request.query_params.get('period')
@@ -147,3 +145,4 @@ class TriggerViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.Trigger.objects.all()
     serializer_class = serializers.TriggerSerializer
     lookup_field = 'uuid'
+    filter_class = filters.TriggerFilter

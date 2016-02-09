@@ -6,7 +6,7 @@ from celery import shared_task
 
 from nodeconductor.core.tasks import save_error_message, transition
 from .backend import ZabbixBackendError
-from .models import Host, SlaHistory
+from .models import Host, SlaHistory, ITService
 
 
 logger = logging.getLogger(__name__)
@@ -14,19 +14,19 @@ logger = logging.getLogger(__name__)
 
 @shared_task(name='nodeconductor.zabbix.provision_host')
 def provision_host(host_uuid):
-    begin_provision_host.apply_async(
+    begin_host_provision.apply_async(
         args=(host_uuid,),
-        link=set_online.si(host_uuid),
-        link_error=set_erred.si(host_uuid)
+        link=set_host_online.si(host_uuid),
+        link_error=set_host_erred.si(host_uuid)
     )
 
 
 @shared_task(name='nodeconductor.zabbix.destroy_host')
 def destroy_host(host_uuid):
-    begin_destroy_host.apply_async(
+    begin_host_destroy.apply_async(
         args=(host_uuid,),
-        link=delete.si(host_uuid),
-        link_error=set_erred.si(host_uuid),
+        link=delete_host.si(host_uuid),
+        link_error=set_host_erred.si(host_uuid),
     )
 
 
@@ -40,7 +40,7 @@ def update_visible_name(host_uuid):
 @shared_task
 @transition(Host, 'begin_provisioning')
 @save_error_message
-def begin_provision_host(host_uuid, transition_entity=None):
+def begin_host_provision(host_uuid, transition_entity=None):
     host = transition_entity
     backend = host.get_backend()
     backend.provision_host(host)
@@ -49,59 +49,26 @@ def begin_provision_host(host_uuid, transition_entity=None):
 @shared_task
 @transition(Host, 'begin_deleting')
 @save_error_message
-def begin_destroy_host(host_uuid, transition_entity=None):
+def begin_host_destroy(host_uuid, transition_entity=None):
     host = transition_entity
     backend = host.get_backend()
     backend.destroy_host(host)
 
-    if host.service_id:
-        backend.delete_services([host.service_id])
-
-
-@shared_task(name='nodeconductor.zabbix.provision_itservice')
-def provision_itservice(itservice_uuid):
-    begin_provision_itservice.apply_async(
-        args=(itservice_uuid,),
-        link=set_online.si(itservice_uuid),
-        link_error=set_erred.si(itservice_uuid)
-    )
-
-
-@shared_task
-@transition(Host, 'begin_provisioning')
-@save_error_message
-def begin_provision_itservice(itservice_uuid, transition_entity=None):
-    itservice = transition_entity
-    backend = itservice.get_backend()
-    backend.provision_itservice(itservice)
-
 
 @shared_task
 @transition(Host, 'set_online')
-def set_online(host_uuid, transition_entity=None):
-    pass
-
-
-@shared_task
-@transition(Host, 'set_offline')
-def set_offline(host_uuid, transition_entity=None):
-    pass
-
-
-@shared_task
-@transition(Host, 'schedule_deletion')
-def schedule_deletion(host_uuid, transition_entity=None):
+def set_host_online(host_uuid, transition_entity=None):
     pass
 
 
 @shared_task
 @transition(Host, 'set_erred')
-def set_erred(host_uuid, transition_entity=None):
+def set_host_erred(host_uuid, transition_entity=None):
     pass
 
 
 @shared_task
-def delete(host_uuid):
+def delete_host(host_uuid):
     Host.objects.get(uuid=host_uuid).delete()
 
 
@@ -150,3 +117,56 @@ def update_host_sla(host, period, start_time, end_time):
             )
     except ZabbixBackendError as e:
         logger.warning('Unable to update SLA for host %s. Reason: %s' % (host.id, e))
+
+
+@shared_task(name='nodeconductor.zabbix.provision_itservice')
+def provision_itservice(itservice_uuid):
+    begin_itservice_provision.apply_async(
+        args=(itservice_uuid,),
+        link=set_itservice_online.si(itservice_uuid),
+        link_error=set_itservice_erred.si(itservice_uuid)
+    )
+
+
+@shared_task
+@transition(ITService, 'begin_provisioning')
+@save_error_message
+def begin_itservice_provision(itservice_uuid, transition_entity=None):
+    itservice = transition_entity
+    backend = itservice.get_backend()
+    backend.provision_itservice(itservice)
+
+
+@shared_task(name='nodeconductor.zabbix.destroy_itservice')
+def destroy_itservice(itservice_uuid):
+    begin_itservice_destroy.apply_async(
+        args=(itservice_uuid,),
+        link=delete_itservice.si(itservice_uuid),
+        link_error=set_itservice_erred.si(itservice_uuid),
+    )
+
+
+@shared_task
+@transition(ITService, 'begin_deleting')
+@save_error_message
+def begin_itservice_destroy(itservice_uuid, transition_entity=None):
+    itservice = transition_entity
+    backend = itservice.get_backend()
+    backend.delete_service(itservice.backend_id)
+
+
+@shared_task
+def delete_itservice(itservice_uuid):
+    ITService.objects.get(uuid=itservice_uuid).delete()
+
+
+@shared_task
+@transition(ITService, 'set_online')
+def set_itservice_online(host_uuid, transition_entity=None):
+    pass
+
+
+@shared_task
+@transition(ITService, 'set_erred')
+def set_itservice_erred(host_uuid, transition_entity=None):
+    pass
