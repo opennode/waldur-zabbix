@@ -25,9 +25,6 @@ The following rules for generation of the service settings are used:
  - interface_parameters - default parameters for hosts interface. (default: {"dns": "", "ip": "0.0.0.0", "main": 1, "port": "10050", "type": 1, "useip": 1});
  - templates_names - List of Zabbix hosts templates. (default: ["NodeConductor"]);
  - database_parameters - Zabbix database parameters. (default: {"host": "localhost", "port": "3306", "name": "zabbix", "user": "admin", "password": ""})
- - service_triggers - Map resource type to description of trigger.
-   Then trigger is passed as argument to `service.create` method of Zabbix IT service API.
-   (default: {"OpenStack.Instance": "Missing data about the VM"})
 
 
 Example of a request:
@@ -79,9 +76,9 @@ To get a list of connections between a project and a Zabbix service, run GET aga
 where a user has a role.
 
 
-Create a new Zabbix resource (host)
------------------------------------
-A new Zabbix resource (host) can be created by users with project administrator role, customer owner role or with
+Create a new Zabbix host
+------------------------
+A new Zabbix host can be created by users with project administrator role, customer owner role or with
 staff privilege (is_staff=True). To create a host, client must issue POST request to **/api/zabbix-hosts/** with
 parameters:
 
@@ -93,11 +90,8 @@ parameters:
  - interface_parameters - host interface parameters (optional);
  - host_group_name - host group name (optional);
  - templates - list of template urls (optional).
- - agreed_sla - optional, for example 99.99; if it is specified, Zabbix IT Service is created with trigger
- corresponding to resource type of scope.
 
 For optional fields, such as interface_parameters, host_group_name, templates if value is not specified in request, default value will be taken from service settings.
-
 
 Example of a valid request:
 
@@ -292,6 +286,20 @@ Example request and response:
             "value": 50.3574
         }
     ]
+
+
+Create a new Zabbix IT service
+------------------------------
+To create an `IT Service <https://www.zabbix.com/documentation/2.0/manual/it_services/>`_,
+client must issue POST request to **/api/zabbix-hosts/** with parameters:
+
+ - name - name of IT Service;
+ - service_project_link - url of service-project-link;
+ - host - url of Zabbix host;
+ - agreed_sla - required, for example 99.99;
+ - trigger - url of Zabbix trigger.
+
+Note that host's templates should contain trigger's template.
 
 
 Cleanup stale IT services

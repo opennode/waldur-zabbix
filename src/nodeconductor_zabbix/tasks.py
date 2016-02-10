@@ -90,25 +90,25 @@ def update_sla(sla_type):
 
     end_time = int(dt.strftime("%s"))
 
-    hosts = Host.objects.get_active_hosts()
-    for host in hosts:
-        update_host_sla(host, period, start_time, end_time)
+    for itservice in ITService.objects.get_active():
+        update_itservice_sla(itservice, period, start_time, end_time)
 
 
-def update_host_sla(host, period, start_time, end_time):
-    message = 'Updating SLAs for host %s. Period: %s, start_time: %s, end_time: %s'
-    logger.debug(message, host, period, start_time, end_time)
+def update_itservice_sla(itservice, period, start_time, end_time):
+    message = 'Updating SLAs for IT Service %s. Period: %s, start_time: %s, end_time: %s'
+    logger.debug(message, itservice, period, start_time, end_time)
 
-    backend = host.get_backend()
+    backend = itservice.get_backend()
 
     try:
-        current_sla = backend.get_sla(host.service_id, start_time, end_time)
-        entry, _ = SlaHistory.objects.get_or_create(host=host, period=period)
+        current_sla = backend.get_sla(itservice.backend_id, start_time, end_time)
+        entry, _ = SlaHistory.objects.get_or_create(itservice=itservice, period=period)
         entry.value = Decimal(current_sla)
         entry.save()
 
         # update connected events
-        events = backend.get_trigger_events(host.trigger_id, start_time, end_time)
+        trigger_id = backend._get_trigger_id(itservice.host.backend_id, itservice.trigger.name)
+        events = backend.get_trigger_events(trigger_id, start_time, end_time)
         for event in events:
             event_state = 'U' if int(event['value']) == 0 else 'D'
             entry.events.get_or_create(
@@ -116,7 +116,7 @@ def update_host_sla(host, period, start_time, end_time):
                 state=event_state
             )
     except ZabbixBackendError as e:
-        logger.warning('Unable to update SLA for host %s. Reason: %s' % (host.id, e))
+        logger.warning('Unable to update SLA for IT Service %s. Reason: %s' % (itservice.id, e))
 
 
 @shared_task(name='nodeconductor.zabbix.provision_itservice')

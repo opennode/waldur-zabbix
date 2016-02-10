@@ -71,25 +71,6 @@ class Template(structure_models.ServiceProperty):
         return 'zabbix-template'
 
 
-class Trigger(structure_models.ServiceProperty):
-    template = models.ForeignKey(Template, related_name='triggers')
-
-
-# Zabbix trigger name max length - 255
-Trigger._meta.get_field('name').max_length = 255
-
-
-class ITService(structure_models.Resource):
-    host = models.ForeignKey(Host, on_delete=models.PROTECT)
-    trigger = models.ForeignKey(Trigger)
-    agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
-    service_project_link = models.ForeignKey(ZabbixServiceProjectLink, related_name='itservice', on_delete=models.PROTECT)
-
-    @classmethod
-    def get_url_name(cls):
-        return 'zabbix-itservice'
-
-
 class Item(models.Model):
     class ValueTypes:
         FLOAT = 0
@@ -118,18 +99,40 @@ class Item(models.Model):
         return self.units == 'B'
 
 
+class Trigger(structure_models.ServiceProperty):
+    template = models.ForeignKey(Template, related_name='triggers')
+
+
+# Zabbix trigger name max length - 255
+Trigger._meta.get_field('name').max_length = 255
+
+
+class ITService(structure_models.Resource):
+    host = models.ForeignKey(Host, on_delete=models.PROTECT)
+    trigger = models.ForeignKey(Trigger)
+    agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
+    service_project_link = models.ForeignKey(ZabbixServiceProjectLink,
+                                             related_name='itservice',
+                                             on_delete=models.PROTECT)
+    objects = managers.ITServiceManager()
+
+    @classmethod
+    def get_url_name(cls):
+        return 'zabbix-itservice'
+
+
 class SlaHistory(models.Model):
-    host = models.ForeignKey(Host)
+    itservice = models.ForeignKey(ITService)
     period = models.CharField(max_length=10)
     value = models.DecimalField(max_digits=11, decimal_places=4, null=True, blank=True)
 
     class Meta:
         verbose_name = 'SLA history'
         verbose_name_plural = 'SLA histories'
-        unique_together = ('host', 'period')
+        unique_together = ('itservice', 'period')
 
     def __str__(self):
-        return 'SLA for %s during %s: %s' % (self.scope, self.period, self.value)
+        return 'SLA for %s during %s: %s' % (self.itservice, self.period, self.value)
 
 
 class SlaHistoryEvent(models.Model):

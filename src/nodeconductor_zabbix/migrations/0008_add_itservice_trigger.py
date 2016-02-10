@@ -69,6 +69,12 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(to='nodeconductor_zabbix.Trigger'),
             preserve_default=True,
         ),
+        migrations.AddField(
+            model_name='itservice',
+            name='service_project_link',
+            field=models.ForeignKey(related_name='itservice', on_delete=models.deletion.PROTECT, to='nodeconductor_zabbix.ZabbixServiceProjectLink'),
+            preserve_default=False,
+        ),
         migrations.RemoveField(
             model_name='host',
             name='agreed_sla',
@@ -88,9 +94,17 @@ class Migration(migrations.Migration):
             preserve_default=True,
         ),
         migrations.AddField(
-            model_name='itservice',
-            name='service_project_link',
-            field=models.ForeignKey(related_name='itservice', on_delete=models.deletion.PROTECT, to='nodeconductor_zabbix.ZabbixServiceProjectLink'),
+            model_name='slahistory',
+            name='itservice',
+            field=models.ForeignKey(to='nodeconductor_zabbix.ITService'),
             preserve_default=False,
-        )
+        ),
+        migrations.AlterUniqueTogether(
+            name='slahistory',
+            unique_together=set([('itservice', 'period')]),
+        ),
+        migrations.RemoveField(
+            model_name='slahistory',
+            name='host',
+        ),
     ]

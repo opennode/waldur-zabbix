@@ -23,9 +23,7 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
                                 '"useip": 1})',
         'templates_names': 'List of Zabbix hosts templates. (default: ["NodeConductor"])',
         'database_parameters': 'Zabbix database parameters. (default: {"host": "localhost", "port": "3306", '
-                               '"name": "zabbix", "user": "admin", "password": ""})',
-        'service_triggers': 'Map resource type to trigger description in order to create service level agreement. '
-                            '(default: {"OpenStack.Instance": "Missing data about the VM"})'
+                               '"name": "zabbix", "user": "admin", "password": ""})'
     }
 
     class Meta(structure_serializers.BaseServiceSerializer.Meta):
@@ -178,7 +176,7 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
 
     trigger = serializers.HyperlinkedRelatedField(
         view_name='zabbix-trigger-detail',
-        queryset=models.Trigger.objects.all(),
+        queryset=models.Trigger.objects.all().select_related('settings'),
         lookup_field='uuid')
 
     trigger_name = serializers.ReadOnlyField(source='trigger.name')
