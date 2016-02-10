@@ -1,8 +1,9 @@
-Zabbix services list
---------------------
+Services
+========
 
+List services
+-------------
 To get a list of services, run GET against **/api/zabbix/** as authenticated user.
-
 
 Create a Zabbix service
 -----------------------
@@ -29,7 +30,6 @@ The following rules for generation of the service settings are used:
 
 Example of a request:
 
-
 .. code-block:: http
 
     POST /api/zabbix/ HTTP/1.1
@@ -46,6 +46,9 @@ Example of a request:
         "password": "zabbix"
     }
 
+
+Service-project link
+====================
 
 Link service to a project
 -------------------------
@@ -75,6 +78,9 @@ To get a list of connections between a project and a Zabbix service, run GET aga
 **/api/zabbix-service-project-link/** as authenticated user. Note that a user can only see connections of a project
 where a user has a role.
 
+
+Hosts
+=====
 
 Create a new Zabbix host
 ------------------------
@@ -116,8 +122,8 @@ Example of a valid request:
     }
 
 
-Host display
-------------
+Get host
+--------
 
 To get host data - issue GET request against **/api/zabbix-hosts/<host_uuid>/**.
 
@@ -288,10 +294,30 @@ Example request and response:
     ]
 
 
+IT services and SLA calculation
+===============================
+
+List triggers
+-------------
+Triggers are available as Zabbix service properties under */api/zabbix-triggers/* endpoint.
+You may filter triggers by template by passing its ID as GET query parameter.
+
+.. code-block:: javascript
+
+    [
+        {
+            "url": "http://example.com/api/zabbix-triggers/3e19dc77279d42ccb6c2e21f2a2f6ced/",
+            "uuid": "3e19dc77279d42ccb6c2e21f2a2f6ced",
+            "name": "Host name of zabbix_agentd was changed on {HOST.NAME}",
+            "template": "http://example.com/api/zabbix-templates/8780ebf60ac448c4a3d083f0c71106ff/"
+        }
+    ]
+
+
 Create a new Zabbix IT service
 ------------------------------
 To create an `IT Service <https://www.zabbix.com/documentation/2.0/manual/it_services/>`_,
-client must issue POST request to **/api/zabbix-hosts/** with parameters:
+client must issue POST request to **/api/zabbix-itservices/** with parameters:
 
  - name - name of IT Service;
  - service_project_link - url of service-project-link;
@@ -301,20 +327,78 @@ client must issue POST request to **/api/zabbix-hosts/** with parameters:
 
 Note that host's templates should contain trigger's template.
 
+Example of a request:
+
+.. code-block:: http
+
+    POST /api/zabbix-itservices/ HTTP/1.1
+    Content-Type: application/json
+    Accept: application/json
+    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
+    Host: example.com
+
+    {
+        "name": "Availability of myvm",
+        "service_project_link": "http://example.com/api/zabbix-service-project-link/1/",
+        "host": "http://example.com/api/zabbix-hosts/d5985a854f2c49179cd4cc479d198e1e/",
+        "agreed_sla": 95,
+        "trigger": "http://example.com/api/zabbix-triggers/4d740efa627e49cf9441aa34b4c927d0/"
+    }
+
+Example response:
+
+.. code-block:: javascript
+
+   {
+        "url": "http://example.com/api/zabbix-itservices/fd3cde79f4c04bccbf24276867d7665d/",
+        "uuid": "fd3cde79f4c04bccbf24276867d7665d",
+        "name": "Availability of myvm",
+        "description": "",
+        "start_time": null,
+        "service": "http://example.com/api/zabbix/1215d820d8064d058e640fd76651c9cd/",
+        "service_name": "My Zabbix",
+        "service_uuid": "1215d820d8064d058e640fd76651c9cd",
+        "project": "http://example.com/api/projects/c89b39ef0b374e1dbbf18b557b7e8a77/",
+        "project_name": "Default",
+        "project_uuid": "c89b39ef0b374e1dbbf18b557b7e8a77",
+        "customer": "http://example.com/api/customers/942ef46248a245fcb0a371f2dfeb90ab/",
+        "customer_name": "Erin Lebowski",
+        "customer_native_name": "Erin Lebowski",
+        "customer_abbreviation": "",
+        "project_groups": [],
+        "tags": [],
+        "error_message": "",
+        "resource_type": "Zabbix.ITService",
+        "state": "Provisioning",
+        "created": "2016-02-10T10:54:04Z",
+        "backend_id": "",
+        "access_url": null,
+        "host": "http://example.com/api/zabbix-hosts/d5985a854f2c49179cd4cc479d198e1e/",
+        "agreed_sla": "95.0000",
+        "actual_sla": null,
+        "trigger": "http://example.com/api/zabbix-triggers/4d740efa627e49cf9441aa34b4c927d0/",
+        "trigger_name": "VM free memory is less than 10%"
+    }
+
+
+Delete IT service
+-----------------
+
+To delete IT service, issue DELETE request against **/api/zabbix-itservices/<host_uuid>/**.
+
 
 Cleanup stale IT services
 -------------------------
 
 Sometimes stale Zabbix IT services (used for SLA calculation) remain in Zabbix, polluting the data.
 
-- GET **/api/zabbix/<service_uuid>/stale_services/**
-  Returns `id` and `name` of all Zabbix IT services that exist in that Zabbix server.
-
+In order to list of stale service, issue GET request against **/api/zabbix/<service_uuid>/stale_services/**.
+It returns `id` and `name` of all Zabbix IT services that exist in that Zabbix server.
 Example request and response:
 
 .. code-block:: http
 
-    GET /api/zabbix/c2c29036f6e441908e5f7ca0f2441431/services/ HTTP/1.1
+    GET /api/zabbix/c2c29036f6e441908e5f7ca0f2441431/stale_services/ HTTP/1.1
     Content-Type: application/json
     Accept: application/json
     Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
@@ -322,30 +406,18 @@ Example request and response:
 
     [
         {
-            'name': 'Availability of 06e4b56f-0ec6-4c47-97d8-35b87341e9da',
-            'id': '188'
+            "name": "Availability of 06e4b56f-0ec6-4c47-97d8-35b87341e9da",
+            "id": "188"
         },
         {
-            'name': 'Availability of 62db4587-9c55-4d79-95f5-adb759fa8344',
-            'id': '189'
+            "name": "Availability of 62db4587-9c55-4d79-95f5-adb759fa8344",
+            "id": "189"
         },
         {
-            'name': 'Availability of a903bdf7-6e93-40fc-9c72-f7857711d4b6',
-            'id': '190'
+            "name": "Availability of a903bdf7-6e93-40fc-9c72-f7857711d4b6",
+            "id": "190"
         }
     ]
 
-- DELETE **/api/zabbix/<service_uuid>/stale_services/?id=id1&id=id2**
-  Deletes Zabbix IT services with marked IDs.
-
-Example request and response:
-
-.. code-block:: http
-
-    DELETE /api/zabbix/c2c29036f6e441908e5f7ca0f2441431/services/?id=188&id=189 HTTP/1.1
-    Content-Type: application/json
-    Accept: application/json
-    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
-    Host: example.com
-
-    Services 188, 189 are deleted.
+In order to delete stale services by ID, issue DELETE request.
+For example **/api/zabbix/<service_uuid>/stale_services/?id=id1&id=id2**.

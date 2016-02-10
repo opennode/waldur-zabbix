@@ -192,20 +192,19 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
             'trigger', 'host'
         )
 
-    def get_actual_sla(self, host):
+    def get_actual_sla(self, itservice):
         if 'sla_map' not in self.context:
             period = self.context.get('period')
             if period is None:
                 raise AttributeError('ITServiceSerializer has to be initialized with `period` in context')
             qs = models.SlaHistory.objects.filter(period=period)
             if isinstance(self.instance, list):
-                hosts = [service.host_id for service in self.instance]
-                qs = qs.filter(host_id__in=hosts)
+                qs = qs.filter(itservice__in=self.instance)
             else:
-                qs = qs.filter(host=self.instance.host)
-            self.context['sla_map'] = {q.host_id: q.value for q in qs}
+                qs = qs.filter(itservice=self.instance)
+            self.context['sla_map'] = {q.itservice_id: q.value for q in qs}
 
-        return self.context['sla_map'].get(host.id)
+        return self.context['sla_map'].get(itservice.id)
 
     def validate(self, attrs):
         host = attrs['host']
