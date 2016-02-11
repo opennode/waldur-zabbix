@@ -361,7 +361,13 @@ client must issue POST request to **/api/zabbix-itservices/** with parameters:
  - service_project_link - url of service-project-link;
  - host - url of Zabbix host;
  - agreed_sla - required, for example 99.99;
- - trigger - url of Zabbix trigger.
+ - trigger - url of Zabbix trigger;
+ - sort_order - optional integer, position of the IT service used for sorting
+ - algorithm - required integer, specifies algoritm to calculate the state of the IT service.
+   Possible values:
+     0 - do not calculate;
+     1 - problem, if at least one child has a problem;
+     2 - problem, if all children have problems.
 
 Note that host's templates should contain trigger's template.
 
