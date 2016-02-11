@@ -177,9 +177,16 @@ class ZabbixRealBackend(ZabbixBaseBackend):
 
     def provision_itservice(self, itservice):
         service_name = itservice.name or self._get_service_name(itservice.host.scope.backend_id)
-        trigger_id = self._get_trigger_id(itservice.host.backend_id, itservice.trigger.name)
 
-        service_id = self.create_itservice(service_name, itservice.agreed_sla, trigger_id)
+        trigger_id = None
+        if itservice.trigger and itservice.host:
+            trigger_id = self._get_trigger_id(itservice.host.backend_id, itservice.trigger.name)
+
+        service_id = self.create_itservice(service_name,
+                                           itservice.algorithm,
+                                           itservice.sort_order,
+                                           itservice.agreed_sla,
+                                           trigger_id)
 
         itservice.backend_id = service_id
         itservice.save(update_fields=['backend_id'])
@@ -348,17 +355,20 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             logger.exception('Cannot get Zabbix IT services')
             six.reraise(ZabbixBackendError, e)
 
-    def create_itservice(self, name, agreed_sla, trigger_id):
+    def create_itservice(self, name, algorithm, sort_order, agreed_sla, trigger_id=None):
         """
         Create Zabbix IT service with given parameters.
         """
 
         try:
+            showsla = (algorithm == models.ITService.Algorithm.ANY or
+                       algorithm == models.ITService.Algorithm.ALL) and 1 or 0
+
             data = self.api.service.create({
-                'algorithm': 1,
+                'algorithm': algorithm,
                 'name': name,
-                'showsla': 1,
-                'sortorder': 1,
+                'showsla': showsla,
+                'sortorder': sort_order,
                 'goodsla': six.text_type(agreed_sla),
                 'triggerid': trigger_id
             })
@@ -367,26 +377,6 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
             message = 'Cannot create Zabbix IT service with name: %s. Exception: %s'
             raise ZabbixBackendError(message % (name, str(e)))
-
-    def get_or_create_service(self, name, agreed_sla, trigger_id):
-        """ Get or create Zabbix IT service with given parameters.
-
-        Return (<service>, <is_created>) tuple as result.
-        """
-
-        # Zabbix service API does not have service.exists method
-        try:
-            services = self.api.service.get(filter={'name': name})
-        except (pyzabbix.ZabbixAPIException, RequestException) as e:
-            message = 'Cannot get Zabbix IT service with name: %s. Exception: %s'
-            raise ZabbixBackendError(message % (name, str(e)))
-
-        if len(services) == 1:
-            return services[0]['serviceid'], False
-        elif len(services) > 1:
-            raise ZabbixBackendError('Multiple services found with name %s' % name)
-
-        return self.create_itservice(name, agreed_sla, trigger_id), True
 
     def _get_service_name(self, backend_id):
         return 'Availability of %s' % backend_id

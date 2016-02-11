@@ -36,8 +36,11 @@ class Migration(migrations.Migration):
                 ('start_time', models.DateTimeField(null=True, blank=True)),
                 ('state', django_fsm.FSMIntegerField(default=1, help_text='WARNING! Should not be changed manually unless you really know what you are doing.', max_length=1, choices=[(1, 'Provisioning Scheduled'), (2, 'Provisioning'), (3, 'Online'), (4, 'Offline'), (5, 'Starting Scheduled'), (6, 'Starting'), (7, 'Stopping Scheduled'), (8, 'Stopping'), (9, 'Erred'), (10, 'Deletion Scheduled'), (11, 'Deleting'), (13, 'Resizing Scheduled'), (14, 'Resizing'), (15, 'Restarting Scheduled'), (16, 'Restarting')])),
                 ('agreed_sla', models.DecimalField(null=True, max_digits=6, decimal_places=4, blank=True)),
-                ('host', models.ForeignKey(to='nodeconductor_zabbix.Host', on_delete=django.db.models.deletion.PROTECT)),
+                ('host', models.ForeignKey(on_delete=models.deletion.PROTECT, blank=True, to='nodeconductor_zabbix.Host', null=True)),
                 ('tags', taggit.managers.TaggableManager(to='taggit.Tag', through='taggit.TaggedItem', blank=True, help_text='A comma-separated list of tags.', verbose_name='Tags')),
+                ('algorithm', models.PositiveSmallIntegerField(default=0, choices=[(0, b'do not calculate'), (1, b'problem, if at least one child has a problem'), (2, b'problem, if all children have problems')])),
+                ('sort_order', models.PositiveSmallIntegerField(default=1)),
+                ('service_project_link', models.ForeignKey(related_name='itservice', on_delete=models.deletion.PROTECT, to='nodeconductor_zabbix.ZabbixServiceProjectLink'))
             ],
             options={
                 'abstract': False,
@@ -66,13 +69,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='itservice',
             name='trigger',
-            field=models.ForeignKey(to='nodeconductor_zabbix.Trigger'),
-            preserve_default=True,
-        ),
-        migrations.AddField(
-            model_name='itservice',
-            name='service_project_link',
-            field=models.ForeignKey(related_name='itservice', on_delete=models.deletion.PROTECT, to='nodeconductor_zabbix.ZabbixServiceProjectLink'),
+            field=models.ForeignKey(blank=True, to='nodeconductor_zabbix.Trigger', null=True),
             preserve_default=False,
         ),
         migrations.RemoveField(

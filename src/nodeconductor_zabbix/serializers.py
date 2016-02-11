@@ -187,9 +187,9 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
         model = models.ITService
         view_name = 'zabbix-itservice-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'host', 'agreed_sla', 'actual_sla', 'trigger', 'trigger_name')
+            'host', 'agreed_sla', 'actual_sla', 'trigger', 'trigger_name', 'algorithm', 'sort_order')
         protected_fields = structure_serializers.BaseResourceSerializer.Meta.protected_fields + (
-            'trigger', 'host'
+            'trigger', 'host', 'algorithm', 'sort_order'
         )
 
     def get_actual_sla(self, itservice):

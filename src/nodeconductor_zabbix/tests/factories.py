@@ -25,3 +25,17 @@ class ZabbixServiceFactory(factory.DjangoModelFactory):
     @classmethod
     def get_list_url(cls):
         return 'http://testserver' + reverse('zabbix-list')
+
+
+class ZabbixServiceProjectLinkFactory(factory.DjangoModelFactory):
+    class Meta(object):
+        model = models.ZabbixServiceProjectLink
+
+    service = factory.SubFactory(ZabbixServiceFactory)
+    project = factory.SubFactory(structure_factories.ProjectFactory)
+
+    @classmethod
+    def get_url(cls, spl=None):
+        if spl is None:
+            spl = ZabbixServiceProjectLinkFactory()
+        return 'http://testserver' + reverse('zabbix-spl-detail', kwargs={'pk': spl.pk})
