@@ -5,7 +5,9 @@ import logging
 from celery import shared_task
 
 from nodeconductor.core.tasks import save_error_message, transition
+
 from .backend import ZabbixBackendError
+from .managers import filter_active
 from .models import Host, SlaHistory, ITService
 
 
@@ -90,7 +92,7 @@ def update_sla(sla_type):
 
     end_time = int(dt.strftime("%s"))
 
-    for itservice in ITService.objects.get_active():
+    for itservice in filter_active(ITService.objects.all()):
         update_itservice_sla(itservice, period, start_time, end_time)
 
 

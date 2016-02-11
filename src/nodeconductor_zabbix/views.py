@@ -10,6 +10,7 @@ from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.structure import views as structure_views
 
 from . import models, serializers, filters
+from .managers import filter_active
 
 
 class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
@@ -63,7 +64,7 @@ class HostViewSet(BaseZabbixResourceViewSet):
         return Response(stats, status=status.HTTP_200_OK)
 
     def _get_hosts(self, uuid=None):
-        hosts = self.get_queryset().get_active()
+        hosts = filter_active(self.get_queryset())
         if uuid:
             hosts = hosts.filter(uuid=uuid)
         return hosts

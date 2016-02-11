@@ -133,12 +133,15 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                                       self.settings.password)
         return self._api
 
-    def ping(self):
+    def ping(self, raise_exception=False):
         try:
             self.api.api_version()
-            return True
-        except:
+        except Exception as e:
+            if raise_exception:
+                six.reraise(ZabbixBackendError, e)
             return False
+        else:
+            return True
 
     def sync(self):
         self._get_or_create_group_id(self.host_group_name)

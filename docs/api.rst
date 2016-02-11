@@ -47,11 +47,11 @@ Example of a request:
     }
 
 
-Service-project link
-====================
+Service-project links
+=====================
 
-Link service to a project
--------------------------
+Create and delete link
+----------------------
 In order to be able to provision Zabbix resources, it must first be linked to a project. To do that,
 POST a connection between project and a service to **/api/zabbix-service-project-link/** as staff user or customer
 owner. For example,
@@ -72,8 +72,8 @@ owner. For example,
 To remove a link, issue DELETE to url of the corresponding connection as staff user or customer owner.
 
 
-Project-service connection list
--------------------------------
+List links
+----------
 To get a list of connections between a project and a Zabbix service, run GET against
 **/api/zabbix-service-project-link/** as authenticated user. Note that a user can only see connections of a project
 where a user has a role.
@@ -82,8 +82,8 @@ where a user has a role.
 Hosts
 =====
 
-Create a new Zabbix host
-------------------------
+Create host
+-----------
 A new Zabbix host can be created by users with project administrator role, customer owner role or with
 staff privilege (is_staff=True). To create a host, client must issue POST request to **/api/zabbix-hosts/** with
 parameters:
@@ -296,6 +296,7 @@ Example request and response:
 
 IT services and SLA calculation
 ===============================
+The status of IT service is affected by the status of its trigger.
 
 List triggers
 -------------
@@ -313,6 +314,43 @@ You may filter triggers by template by passing its ID as GET query parameter.
         }
     ]
 
+List IT services
+----------------
+IT services are available as Zabbix resource under */api/zabbix-itservices/* endpoint.
+You may filter IT services using generic resource filtering parameters.
+
+.. code-block:: javascript
+
+    {
+        "url": "http://example.com/api/zabbix-itservices/e17492f35b26450c95b9d05f8da58cec/",
+        "uuid": "e17492f35b26450c95b9d05f8da58cec",
+        "name": "Availability of myvm",
+        "description": "",
+        "start_time": null,
+        "service": "http://example.com/api/zabbix/1215d820d8064d058e640fd76651c9cd/",
+        "service_name": "My Zabbix",
+        "service_uuid": "1215d820d8064d058e640fd76651c9cd",
+        "project": "http://example.com/api/projects/c89b39ef0b374e1dbbf18b557b7e8a77/",
+        "project_name": "Default",
+        "project_uuid": "c89b39ef0b374e1dbbf18b557b7e8a77",
+        "customer": "http://example.com/api/customers/942ef46248a245fcb0a371f2dfeb90ab/",
+        "customer_name": "Erin Lebowski",
+        "customer_native_name": "Erin Lebowski",
+        "customer_abbreviation": "",
+        "project_groups": [],
+        "tags": [],
+        "error_message": "",
+        "resource_type": "Zabbix.ITService",
+        "state": "Online",
+        "created": "2016-02-10T11:07:35Z",
+        "backend_id": "1588",
+        "access_url": null,
+        "host": "http://example.com/api/zabbix-hosts/d5985a854f2c49179cd4cc479d198e1e/",
+        "agreed_sla": "95.0000",
+        "actual_sla": 100.0,
+        "trigger": "http://example.com/api/zabbix-triggers/4d740efa627e49cf9441aa34b4c927d0/",
+        "trigger_name": "VM free memory is less than 10%"
+    }
 
 Create a new Zabbix IT service
 ------------------------------

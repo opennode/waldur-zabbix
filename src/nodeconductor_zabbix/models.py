@@ -114,8 +114,6 @@ class ITService(structure_models.Resource):
     service_project_link = models.ForeignKey(ZabbixServiceProjectLink,
                                              related_name='itservice',
                                              on_delete=models.PROTECT)
-    objects = managers.ITServiceManager()
-
     @classmethod
     def get_url_name(cls):
         return 'zabbix-itservice'
