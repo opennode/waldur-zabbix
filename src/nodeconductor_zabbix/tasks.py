@@ -7,7 +7,6 @@ from celery import shared_task
 from nodeconductor.core.tasks import save_error_message, transition
 
 from .backend import ZabbixBackendError
-from .managers import filter_active
 from .models import Host, SlaHistory, ITService
 
 
@@ -92,15 +91,15 @@ def update_sla(sla_type):
 
     end_time = int(dt.strftime("%s"))
 
-    for itservice in filter_active(ITService.objects.all()):
+    for itservice in ITService.objects.all():
         update_itservice_sla(itservice, period, start_time, end_time)
 
 
 def update_itservice_sla(itservice, period, start_time, end_time):
-    message = 'Updating SLAs for IT Service %s. Period: %s, start_time: %s, end_time: %s'
-    logger.debug(message, itservice, period, start_time, end_time)
+    logger.debug('Updating SLAs for IT Service %s. Period: %s, start_time: %s, end_time: %s',
+                 itservice, period, start_time, end_time)
 
-    backend = itservice.get_backend()
+    backend = itservice.settings.get_backend()
 
     try:
         current_sla = backend.get_sla(itservice.backend_id, start_time, end_time)
@@ -109,8 +108,7 @@ def update_itservice_sla(itservice, period, start_time, end_time):
         entry.save()
 
         # update connected events
-        trigger_id = backend._get_trigger_id(itservice.host.backend_id, itservice.trigger.name)
-        events = backend.get_trigger_events(trigger_id, start_time, end_time)
+        events = backend.get_trigger_events(itservice.backend_trigger_id, start_time, end_time)
         for event in events:
             event_state = 'U' if int(event['value']) == 0 else 'D'
             entry.events.get_or_create(
@@ -118,7 +116,7 @@ def update_itservice_sla(itservice, period, start_time, end_time):
                 state=event_state
             )
     except ZabbixBackendError as e:
-        logger.warning('Unable to update SLA for IT Service %s. Reason: %s' % (itservice.id, e))
+        logger.warning('Unable to update SLA for IT Service %s. Reason: %s', itservice.id, e)
 
 
 @shared_task(name='nodeconductor.zabbix.provision_itservice')

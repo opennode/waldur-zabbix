@@ -2,6 +2,7 @@ from datetime import timedelta
 import logging
 import sys
 import warnings
+from decimal import Decimal
 
 from django.db import connections, DatabaseError
 from django.utils import six, timezone
@@ -146,6 +147,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
     def sync(self):
         self._get_or_create_group_id(self.host_group_name)
         self.pull_templates()
+        self.pull_itservices()
         for name in self.templates_names:
             if not models.Template.objects.filter(name=name).exists():
                 raise ZabbixBackendError('Cannot find template with name "%s".' % name)
@@ -299,6 +301,76 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                     nc_item.save(update_fields=update_fields)
         logger.debug('Successfully pulled Zabbix items for template %s.', template.name)
 
+    def pull_itservices(self):
+        """
+        Update IT services
+        """
+        logger.debug('About to pull Zabbix IT services')
+
+        try:
+            zabbix_services = self.api.service.get(output='extend')
+        except pyzabbix.ZabbixAPIException as e:
+            raise ZabbixBackendError('Cannot pull IT services. Exception: %s' % e)
+
+        # Delete stale services
+        zabbix_services_ids = set(i['serviceid'] for i in zabbix_services)
+        models.ITService.objects.filter(settings=self.settings).exclude(backend_id__in=zabbix_services_ids).delete()
+
+        triggers_map = self._get_triggers_map(zabbix_services)
+
+        for zabbix_service in zabbix_services:
+            triggerid = zabbix_service['triggerid']
+            nc_triggerid = triggers_map.get(triggerid)
+
+            defaults = {
+                'name': zabbix_service['name'],
+                'algorithm': int(zabbix_service['algorithm']),
+                'sort_order': int(zabbix_service['sortorder']),
+                'agreed_sla': Decimal(zabbix_service['goodsla']),
+                'backend_trigger_id': triggerid,
+                'trigger_id': nc_triggerid
+            }
+            nc_service, created = models.ITService.objects.get_or_create(
+                settings=self.settings,
+                backend_id=zabbix_service['serviceid'],
+                defaults=defaults
+            )
+            if not created:
+                update_fields = []
+                for (name, value) in defaults.items():
+                    if getattr(nc_service, name) != value:
+                        setattr(nc_service, name, value)
+                        update_fields.append(name)
+                if update_fields:
+                    nc_service.save(update_fields=update_fields)
+
+        logger.debug('Successfully pulled Zabbix IT services for settings %s.', self.settings)
+
+    def _get_triggers_map(self, zabbix_services):
+        """
+        Return map of Zabbix trigger ID to NodeConductor trigger ID
+        """
+        trigger_ids = self._map_keys(zabbix_services, 'triggerid')
+
+        zabbix_triggers = []
+        try:
+            zabbix_triggers = self.api.trigger.get(triggerids=trigger_ids, output=['triggerid', 'templateid'])
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            logger.exception('Unable to fetch Zabbix triggers')
+            six.reraise(ZabbixBackendError, e)
+
+        template_ids = self._map_keys(zabbix_triggers, 'templateid')
+        nc_triggers = models.Trigger.objects.filter(
+            settings=self.settings,
+            backend_id__in=template_ids).only('pk')
+        nc_triggers_map = {trigger.backend_id: trigger.pk for trigger in list(nc_triggers)}
+
+        return {trigger['triggerid']: nc_triggers_map.get(trigger['templateid'])
+                for trigger in zabbix_triggers}
+
+    def _map_keys(self, items, key):
+        return list(set(item[key] for item in items))
+
     def _update_host(self, host_id, **kwargs):
         try:
             kwargs.update({'hostid': host_id})
@@ -343,31 +415,16 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             raise ZabbixBackendError(
                 'Cannot get or create host with parameters: %s. Exception: %s' % (host_parameters, str(e)))
 
-    def get_stale_services(self):
-        """
-        Get name and id of Zabbix IT services without triggers
-        """
-        try:
-            services = self.api.service.get(output=['name', 'serviceid', 'triggerid'])
-            return [{'name': service['name'], 'id': service['serviceid']}
-                    for service in services if service['triggerid'] == '0']
-        except (pyzabbix.ZabbixAPIException, RequestException) as e:
-            logger.exception('Cannot get Zabbix IT services')
-            six.reraise(ZabbixBackendError, e)
-
     def create_itservice(self, name, algorithm, sort_order, agreed_sla, trigger_id=None):
         """
         Create Zabbix IT service with given parameters.
         """
 
         try:
-            showsla = (algorithm == models.ITService.Algorithm.ANY or
-                       algorithm == models.ITService.Algorithm.ALL) and 1 or 0
-
             data = self.api.service.create({
                 'algorithm': algorithm,
                 'name': name,
-                'showsla': showsla,
+                'showsla': self._get_showsla(algorithm),
                 'sortorder': sort_order,
                 'goodsla': six.text_type(agreed_sla),
                 'triggerid': trigger_id
@@ -377,6 +434,14 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
             message = 'Cannot create Zabbix IT service with name: %s. Exception: %s'
             raise ZabbixBackendError(message % (name, str(e)))
+
+    def _get_showsla(self, algorithm):
+        if algorithm == models.ITService.Algorithm.ANY:
+            return 1
+        elif algorithm == models.ITService.Algorithm.ALL:
+            return 1
+        else:
+            return 0
 
     def _get_service_name(self, backend_id):
         return 'Availability of %s' % backend_id

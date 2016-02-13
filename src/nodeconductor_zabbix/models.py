@@ -107,7 +107,7 @@ class Trigger(structure_models.ServiceProperty):
 Trigger._meta.get_field('name').max_length = 255
 
 
-class ITService(structure_models.Resource):
+class ITService(structure_models.ServiceProperty):
     class Algorithm:
         SKIP = 0
         ANY = 1
@@ -119,15 +119,12 @@ class ITService(structure_models.Resource):
             (ALL, 'problem, if all children have problems')
         )
 
-    service_project_link = models.ForeignKey(ZabbixServiceProjectLink,
-                                             related_name='itservice',
-                                             on_delete=models.PROTECT)
-
     algorithm = models.PositiveSmallIntegerField(choices=Algorithm.CHOICES, default=Algorithm.SKIP)
     sort_order = models.PositiveSmallIntegerField(default=1)
     agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
 
     host = models.ForeignKey(Host, on_delete=models.PROTECT, null=True, blank=True)
+    backend_trigger_id = models.CharField(max_length=64)
     trigger = models.ForeignKey(Trigger, null=True, blank=True)
 
     @classmethod

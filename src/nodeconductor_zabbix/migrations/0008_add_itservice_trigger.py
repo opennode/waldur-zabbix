@@ -2,10 +2,6 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
-import django.utils.timezone
-import django_fsm
-import model_utils.fields
-import taggit.managers
 import uuidfield.fields
 
 import nodeconductor.core.models
@@ -26,26 +22,24 @@ class Migration(migrations.Migration):
             name='ITService',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('created', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, verbose_name='created', editable=False)),
-                ('modified', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, verbose_name='modified', editable=False)),
-                ('description', models.CharField(max_length=500, verbose_name='description', blank=True)),
                 ('name', models.CharField(max_length=150, verbose_name='name', validators=[nodeconductor.core.validators.validate_name])),
                 ('uuid', uuidfield.fields.UUIDField(unique=True, max_length=32, editable=False, blank=True)),
-                ('error_message', models.TextField(blank=True)),
-                ('backend_id', models.CharField(max_length=255, blank=True)),
-                ('start_time', models.DateTimeField(null=True, blank=True)),
-                ('state', django_fsm.FSMIntegerField(default=1, help_text='WARNING! Should not be changed manually unless you really know what you are doing.', max_length=1, choices=[(1, 'Provisioning Scheduled'), (2, 'Provisioning'), (3, 'Online'), (4, 'Offline'), (5, 'Starting Scheduled'), (6, 'Starting'), (7, 'Stopping Scheduled'), (8, 'Stopping'), (9, 'Erred'), (10, 'Deletion Scheduled'), (11, 'Deleting'), (13, 'Resizing Scheduled'), (14, 'Resizing'), (15, 'Restarting Scheduled'), (16, 'Restarting')])),
+                ('backend_id', models.CharField(max_length=255, db_index=True)),
+                ('settings', models.ForeignKey(related_name='+', to='structure.ServiceSettings')),
                 ('agreed_sla', models.DecimalField(null=True, max_digits=6, decimal_places=4, blank=True)),
-                ('host', models.ForeignKey(on_delete=models.deletion.PROTECT, blank=True, to='nodeconductor_zabbix.Host', null=True)),
-                ('tags', taggit.managers.TaggableManager(to='taggit.Tag', through='taggit.TaggedItem', blank=True, help_text='A comma-separated list of tags.', verbose_name='Tags')),
                 ('algorithm', models.PositiveSmallIntegerField(default=0, choices=[(0, b'do not calculate'), (1, b'problem, if at least one child has a problem'), (2, b'problem, if all children have problems')])),
                 ('sort_order', models.PositiveSmallIntegerField(default=1)),
-                ('service_project_link', models.ForeignKey(related_name='itservice', on_delete=models.deletion.PROTECT, to='nodeconductor_zabbix.ZabbixServiceProjectLink'))
+                ('host', models.ForeignKey(on_delete=models.deletion.PROTECT, blank=True, to='nodeconductor_zabbix.Host', null=True)),
+                ('backend_trigger_id', models.CharField(max_length=64)),
             ],
             options={
                 'abstract': False,
             },
-            bases=(nodeconductor.core.models.SerializableAbstractMixin, nodeconductor.core.models.DescendantMixin, nodeconductor.logging.log.LoggableMixin, models.Model),
+            bases=(models.Model,),
+        ),
+        migrations.AlterUniqueTogether(
+            name='itservice',
+            unique_together=set([('settings', 'backend_id')]),
         ),
         migrations.CreateModel(
             name='Trigger',

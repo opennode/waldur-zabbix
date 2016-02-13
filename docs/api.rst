@@ -296,7 +296,8 @@ Example request and response:
 
 IT services and SLA calculation
 ===============================
-The status of IT service is affected by the status of its trigger.
+The status of `IT Service <https://www.zabbix.com/documentation/2.0/manual/it_services/>`_
+is affected by the status of its trigger.
 
 List triggers
 -------------
@@ -316,152 +317,16 @@ You may filter triggers by template by passing its ID as GET query parameter.
 
 List IT services
 ----------------
-IT services are available as Zabbix resource under */api/zabbix-itservices/* endpoint.
-You may filter IT services using generic resource filtering parameters.
+IT services are available as Zabbix service properties under */api/zabbix-itservices/* endpoint.
 
 .. code-block:: javascript
 
     {
-        "url": "http://example.com/api/zabbix-itservices/e17492f35b26450c95b9d05f8da58cec/",
-        "uuid": "e17492f35b26450c95b9d05f8da58cec",
-        "name": "Availability of myvm",
-        "description": "",
-        "start_time": null,
-        "service": "http://example.com/api/zabbix/1215d820d8064d058e640fd76651c9cd/",
-        "service_name": "My Zabbix",
-        "service_uuid": "1215d820d8064d058e640fd76651c9cd",
-        "project": "http://example.com/api/projects/c89b39ef0b374e1dbbf18b557b7e8a77/",
-        "project_name": "Default",
-        "project_uuid": "c89b39ef0b374e1dbbf18b557b7e8a77",
-        "customer": "http://example.com/api/customers/942ef46248a245fcb0a371f2dfeb90ab/",
-        "customer_name": "Erin Lebowski",
-        "customer_native_name": "Erin Lebowski",
-        "customer_abbreviation": "",
-        "project_groups": [],
-        "tags": [],
-        "error_message": "",
-        "resource_type": "Zabbix.ITService",
-        "state": "Online",
-        "created": "2016-02-10T11:07:35Z",
-        "backend_id": "1588",
-        "access_url": null,
-        "host": "http://example.com/api/zabbix-hosts/d5985a854f2c49179cd4cc479d198e1e/",
         "agreed_sla": "95.0000",
         "actual_sla": 100.0,
-        "trigger": "http://example.com/api/zabbix-triggers/4d740efa627e49cf9441aa34b4c927d0/",
-        "trigger_name": "VM free memory is less than 10%"
+        "trigger": "http://example.com/api/zabbix-triggers/5bcdd5c39e2f4750b261cd6aa23be423/",
+        "trigger_name": "Missing data about the VM",
+        "algorithm": "problem, if at least one child has a problem",
+        "sort_order": 1
     }
 
-Create a new Zabbix IT service
-------------------------------
-To create an `IT Service <https://www.zabbix.com/documentation/2.0/manual/it_services/>`_,
-client must issue POST request to **/api/zabbix-itservices/** with parameters:
-
- - name - name of IT Service;
- - service_project_link - url of service-project-link;
- - host - url of Zabbix host;
- - agreed_sla - required, for example 99.99;
- - trigger - url of Zabbix trigger;
- - sort_order - optional integer, position of the IT service used for sorting
- - algorithm - required integer, specifies algoritm to calculate the state of the IT service.
-   Possible values:
-     0 - do not calculate;
-     1 - problem, if at least one child has a problem;
-     2 - problem, if all children have problems.
-
-Note that host's templates should contain trigger's template.
-
-Example of a request:
-
-.. code-block:: http
-
-    POST /api/zabbix-itservices/ HTTP/1.1
-    Content-Type: application/json
-    Accept: application/json
-    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
-    Host: example.com
-
-    {
-        "name": "Availability of myvm",
-        "service_project_link": "http://example.com/api/zabbix-service-project-link/1/",
-        "host": "http://example.com/api/zabbix-hosts/d5985a854f2c49179cd4cc479d198e1e/",
-        "agreed_sla": 95,
-        "trigger": "http://example.com/api/zabbix-triggers/4d740efa627e49cf9441aa34b4c927d0/"
-    }
-
-Example response:
-
-.. code-block:: javascript
-
-   {
-        "url": "http://example.com/api/zabbix-itservices/fd3cde79f4c04bccbf24276867d7665d/",
-        "uuid": "fd3cde79f4c04bccbf24276867d7665d",
-        "name": "Availability of myvm",
-        "description": "",
-        "start_time": null,
-        "service": "http://example.com/api/zabbix/1215d820d8064d058e640fd76651c9cd/",
-        "service_name": "My Zabbix",
-        "service_uuid": "1215d820d8064d058e640fd76651c9cd",
-        "project": "http://example.com/api/projects/c89b39ef0b374e1dbbf18b557b7e8a77/",
-        "project_name": "Default",
-        "project_uuid": "c89b39ef0b374e1dbbf18b557b7e8a77",
-        "customer": "http://example.com/api/customers/942ef46248a245fcb0a371f2dfeb90ab/",
-        "customer_name": "Erin Lebowski",
-        "customer_native_name": "Erin Lebowski",
-        "customer_abbreviation": "",
-        "project_groups": [],
-        "tags": [],
-        "error_message": "",
-        "resource_type": "Zabbix.ITService",
-        "state": "Provisioning",
-        "created": "2016-02-10T10:54:04Z",
-        "backend_id": "",
-        "access_url": null,
-        "host": "http://example.com/api/zabbix-hosts/d5985a854f2c49179cd4cc479d198e1e/",
-        "agreed_sla": "95.0000",
-        "actual_sla": null,
-        "trigger": "http://example.com/api/zabbix-triggers/4d740efa627e49cf9441aa34b4c927d0/",
-        "trigger_name": "VM free memory is less than 10%"
-    }
-
-
-Delete IT service
------------------
-
-To delete IT service, issue DELETE request against **/api/zabbix-itservices/<host_uuid>/**.
-
-
-Cleanup stale IT services
--------------------------
-
-Sometimes stale Zabbix IT services (used for SLA calculation) remain in Zabbix, polluting the data.
-
-In order to list of stale service, issue GET request against **/api/zabbix/<service_uuid>/stale_services/**.
-It returns `id` and `name` of all Zabbix IT services that exist in that Zabbix server.
-Example request and response:
-
-.. code-block:: http
-
-    GET /api/zabbix/c2c29036f6e441908e5f7ca0f2441431/stale_services/ HTTP/1.1
-    Content-Type: application/json
-    Accept: application/json
-    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
-    Host: example.com
-
-    [
-        {
-            "name": "Availability of 06e4b56f-0ec6-4c47-97d8-35b87341e9da",
-            "id": "188"
-        },
-        {
-            "name": "Availability of 62db4587-9c55-4d79-95f5-adb759fa8344",
-            "id": "189"
-        },
-        {
-            "name": "Availability of a903bdf7-6e93-40fc-9c72-f7857711d4b6",
-            "id": "190"
-        }
-    ]
-
-In order to delete stale services by ID, issue DELETE request.
-For example **/api/zabbix/<service_uuid>/stale_services/?id=id1&id=id2**.

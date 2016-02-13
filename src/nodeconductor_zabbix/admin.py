@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from nodeconductor.structure import admin as structure_admin
-from .models import ZabbixServiceProjectLink, ZabbixService, Host, SlaHistory, SlaHistoryEvent, ITService
+from .models import ZabbixServiceProjectLink, ZabbixService, Host, SlaHistory, SlaHistoryEvent
 
 
 class SlaHistoryEventsInline(admin.TabularInline):
@@ -20,7 +20,6 @@ class SlaHistoryAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Host, structure_admin.ResourceAdmin)
-admin.site.register(ITService, structure_admin.ResourceAdmin)
 admin.site.register(ZabbixService, structure_admin.ServiceAdmin)
 admin.site.register(ZabbixServiceProjectLink, structure_admin.ServiceProjectLinkAdmin)
 admin.site.register(SlaHistory, SlaHistoryAdmin)

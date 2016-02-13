@@ -157,23 +157,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         return host
 
 
-class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
-    service = serializers.HyperlinkedRelatedField(
-        source='service_project_link.service',
-        view_name='zabbix-detail',
-        read_only=True,
-        lookup_field='uuid')
-
-    service_project_link = serializers.HyperlinkedRelatedField(
-        view_name='zabbix-spl-detail',
-        queryset=models.ZabbixServiceProjectLink.objects.all(),
-        write_only=True)
-
-    host = serializers.HyperlinkedRelatedField(
-        view_name='zabbix-host-detail',
-        queryset=models.Host.objects.all(),
-        lookup_field='uuid')
-
+class ITServiceSerializer(structure_serializers.BasePropertySerializer):
     trigger = serializers.HyperlinkedRelatedField(
         view_name='zabbix-trigger-detail',
         queryset=models.Trigger.objects.all().select_related('settings'),
@@ -182,15 +166,12 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
     trigger_name = serializers.ReadOnlyField(source='trigger.name')
 
     actual_sla = serializers.SerializerMethodField()
+    algorithm = serializers.ReadOnlyField(source='get_algorithm_display')
 
-    class Meta(structure_serializers.BaseResourceSerializer.Meta):
+    class Meta(structure_serializers.BasePropertySerializer.Meta):
         model = models.ITService
         view_name = 'zabbix-itservice-detail'
-        fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'host', 'agreed_sla', 'actual_sla', 'trigger', 'trigger_name', 'algorithm', 'sort_order')
-        protected_fields = structure_serializers.BaseResourceSerializer.Meta.protected_fields + (
-            'trigger', 'host', 'algorithm', 'sort_order'
-        )
+        fields = ('agreed_sla', 'actual_sla', 'trigger', 'trigger_name', 'algorithm', 'sort_order')
 
     def get_actual_sla(self, itservice):
         if 'sla_map' not in self.context:

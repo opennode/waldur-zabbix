@@ -17,22 +17,6 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
     queryset = models.ZabbixService.objects.all()
     serializer_class = serializers.ServiceSerializer
 
-    @detail_route(methods=['GET', 'DELETE'])
-    def stale_services(self, request, uuid):
-        service = self.get_object()
-        backend = service.get_backend()
-        services = backend.get_stale_services()
-        if request.method == 'GET':
-            return Response(services, status=status.HTTP_200_OK)
-        elif request.method == 'DELETE':
-            all_ids = [service['id'] for service in services]
-            ids = [id for id in request.query_params.getlist('id') if id in all_ids]
-            if not ids:
-                raise ValidationError({'detail': 'Valid services not found.'})
-            message = 'Services %s are deleted.' % ', '.join(ids)
-            backend.delete_services(ids)
-            return Response({'detail': message}, status=status.HTTP_204_NO_CONTENT)
-
 
 class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkViewSet):
     queryset = models.ZabbixServiceProjectLink.objects.all()
@@ -116,8 +100,8 @@ class HostViewSet(BaseZabbixResourceViewSet):
         return map(sum_without_none, zip(*rows))
 
 
-class ITServiceViewSet(BaseZabbixResourceViewSet):
-    queryset = models.ITService.objects.all()
+class ITServiceViewSet(structure_views.BaseServicePropertyViewSet):
+    queryset = models.ITService.objects.all().select_related('trigger')
     serializer_class = serializers.ITServiceSerializer
 
     def _get_period(self):
