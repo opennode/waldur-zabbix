@@ -103,7 +103,7 @@ def update_itservice_sla(itservice_id, period, start_time, end_time):
     try:
         itservice = ITService.objects.get(pk=itservice_id)
     except ITService.DoesNotExist:
-        logger.warning('Unable to update SLA for IT Service %s, because it is gone', itservice.id)
+        logger.warning('Unable to update SLA for IT Service %s, because it is gone', itservice_id)
         return
 
     backend = itservice.settings.get_backend()
