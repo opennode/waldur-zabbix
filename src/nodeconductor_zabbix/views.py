@@ -8,28 +8,14 @@ from rest_framework.serializers import ValidationError
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.structure import views as structure_views
+
 from . import models, serializers, filters
+from .managers import filter_active
 
 
 class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
     queryset = models.ZabbixService.objects.all()
     serializer_class = serializers.ServiceSerializer
-
-    @detail_route(methods=['GET', 'DELETE'])
-    def stale_services(self, request, uuid):
-        service = self.get_object()
-        backend = service.get_backend()
-        services = backend.get_stale_services()
-        if request.method == 'GET':
-            return Response(services, status=status.HTTP_200_OK)
-        elif request.method == 'DELETE':
-            all_ids = [service['id'] for service in services]
-            ids = [id for id in request.query_params.getlist('id') if id in all_ids]
-            if not ids:
-                raise ValidationError({'detail': 'Valid services not found.'})
-            message = 'Services %s are deleted.' % ', '.join(ids)
-            backend.delete_services(ids)
-            return Response({'detail': message}, status=status.HTTP_204_NO_CONTENT)
 
 
 class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkViewSet):
@@ -37,17 +23,19 @@ class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkView
     serializer_class = serializers.ServiceProjectLinkSerializer
 
 
-class HostViewSet(structure_views.BaseOnlineResourceViewSet):
-    queryset = models.Host.objects.all()
-    serializer_class = serializers.HostSerializer
-    filter_backends = structure_views.BaseOnlineResourceViewSet.filter_backends + (
-        filters.HostScopeFilterBackend,
-    )
-
+class BaseZabbixResourceViewSet(structure_views.BaseOnlineResourceViewSet):
     def perform_provision(self, serializer):
         resource = serializer.save()
         backend = resource.get_backend()
         backend.provision(resource)
+
+
+class HostViewSet(BaseZabbixResourceViewSet):
+    queryset = models.Host.objects.all()
+    serializer_class = serializers.HostSerializer
+    filter_backends = BaseZabbixResourceViewSet.filter_backends + (
+        filters.HostScopeFilterBackend,
+    )
 
     @list_route()
     def aggregated_items_history(self, request):
@@ -60,7 +48,7 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
         return Response(stats, status=status.HTTP_200_OK)
 
     def _get_hosts(self, uuid=None):
-        hosts = self.get_queryset().get_active_hosts()
+        hosts = filter_active(self.get_queryset())
         if uuid:
             hosts = hosts.filter(uuid=uuid)
         return hosts
@@ -111,6 +99,11 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
             return sum(x for x in xs if x)
         return map(sum_without_none, zip(*rows))
 
+
+class ITServiceViewSet(structure_views.BaseServicePropertyViewSet):
+    queryset = models.ITService.objects.all().select_related('trigger')
+    serializer_class = serializers.ITServiceSerializer
+
     def _get_period(self):
         period = self.request.query_params.get('period')
         if period is None:
@@ -120,9 +113,9 @@ class HostViewSet(structure_views.BaseOnlineResourceViewSet):
 
     def get_serializer_context(self):
         """
-        Extra context provided to the serializer class.
+        Add period to context.
         """
-        context = super(HostViewSet, self).get_serializer_context()
+        context = super(ITServiceViewSet, self).get_serializer_context()
         context['period'] = self._get_period()
         return context
 
@@ -131,3 +124,10 @@ class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.Template.objects.all().select_related('items')
     serializer_class = serializers.TemplateSerializer
     lookup_field = 'uuid'
+
+
+class TriggerViewSet(structure_views.BaseServicePropertyViewSet):
+    queryset = models.Trigger.objects.all()
+    serializer_class = serializers.TriggerSerializer
+    lookup_field = 'uuid'
+    filter_class = filters.TriggerFilter

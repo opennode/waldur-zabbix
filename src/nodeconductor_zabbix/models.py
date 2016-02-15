@@ -40,10 +40,6 @@ class Host(structure_models.Resource):
 
     objects = managers.HostManager('scope')
 
-    agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
-    service_id = models.CharField(max_length=255, blank=True)
-    trigger_id = models.CharField(max_length=255, blank=True)
-
     @classmethod
     def get_url_name(cls):
         return 'zabbix-host'
@@ -91,7 +87,7 @@ class Item(models.Model):
             (TEXT, 'Text')
         )
 
-    name = models.CharField(max_length=64)
+    name = models.CharField(max_length=255)
     template = models.ForeignKey(Template, related_name='items')
     backend_id = models.CharField(max_length=64)
     value_type = models.IntegerField(choices=ValueTypes.CHOICES)
@@ -103,18 +99,51 @@ class Item(models.Model):
         return self.units == 'B'
 
 
+class Trigger(structure_models.ServiceProperty):
+    template = models.ForeignKey(Template, related_name='triggers')
+
+
+# Zabbix trigger name max length - 255
+Trigger._meta.get_field('name').max_length = 255
+
+
+class ITService(structure_models.ServiceProperty):
+    class Algorithm:
+        SKIP = 0
+        ANY = 1
+        ALL = 2
+
+        CHOICES = (
+            (SKIP, 'do not calculate'),
+            (ANY, 'problem, if at least one child has a problem'),
+            (ALL, 'problem, if all children have problems')
+        )
+
+    algorithm = models.PositiveSmallIntegerField(choices=Algorithm.CHOICES, default=Algorithm.SKIP)
+    sort_order = models.PositiveSmallIntegerField(default=1)
+    agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
+
+    host = models.ForeignKey(Host, on_delete=models.PROTECT, null=True, blank=True)
+    backend_trigger_id = models.CharField(max_length=64, null=True, blank=True)
+    trigger = models.ForeignKey(Trigger, null=True, blank=True)
+
+    @classmethod
+    def get_url_name(cls):
+        return 'zabbix-itservice'
+
+
 class SlaHistory(models.Model):
-    host = models.ForeignKey(Host)
+    itservice = models.ForeignKey(ITService)
     period = models.CharField(max_length=10)
     value = models.DecimalField(max_digits=11, decimal_places=4, null=True, blank=True)
 
     class Meta:
         verbose_name = 'SLA history'
         verbose_name_plural = 'SLA histories'
-        unique_together = ('host', 'period')
+        unique_together = ('itservice', 'period')
 
     def __str__(self):
-        return 'SLA for %s during %s: %s' % (self.scope, self.period, self.value)
+        return 'SLA for %s during %s: %s' % (self.itservice, self.period, self.value)
 
 
 class SlaHistoryEvent(models.Model):

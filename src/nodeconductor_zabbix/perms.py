@@ -22,6 +22,9 @@ PERMISSION_LOGICS = (
         any_permission=True,
     )),
     ('nodeconductor_zabbix.Host', structure_perms.resource_permission_logic),
+    ('nodeconductor_zabbix.ITService', StaffPermissionLogic(any_permission=True)),
+    ('nodeconductor_zabbix.Template', StaffPermissionLogic(any_permission=True)),
+    ('nodeconductor_zabbix.Trigger', StaffPermissionLogic(any_permission=True)),
     ('nodeconductor_zabbix.SlaHistory', StaffPermissionLogic(any_permission=True)),
     ('nodeconductor_zabbix.SlaHistoryEvent', StaffPermissionLogic(any_permission=True)),
 )

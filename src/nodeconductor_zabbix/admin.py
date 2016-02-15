@@ -15,8 +15,8 @@ class SlaHistoryAdmin(admin.ModelAdmin):
     inlines = (
         SlaHistoryEventsInline,
     )
-    list_display = ('host', 'period', 'value')
-    list_filter = ('host', 'period')
+    list_display = ('itservice', 'period', 'value')
+    list_filter = ('itservice', 'period')
 
 
 admin.site.register(Host, structure_admin.ResourceAdmin)

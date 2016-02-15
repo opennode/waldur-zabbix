@@ -1,8 +1,9 @@
-Zabbix services list
---------------------
+Services
+========
 
+List services
+-------------
 To get a list of services, run GET against **/api/zabbix/** as authenticated user.
-
 
 Create a Zabbix service
 -----------------------
@@ -25,13 +26,9 @@ The following rules for generation of the service settings are used:
  - interface_parameters - default parameters for hosts interface. (default: {"dns": "", "ip": "0.0.0.0", "main": 1, "port": "10050", "type": 1, "useip": 1});
  - templates_names - List of Zabbix hosts templates. (default: ["NodeConductor"]);
  - database_parameters - Zabbix database parameters. (default: {"host": "localhost", "port": "3306", "name": "zabbix", "user": "admin", "password": ""})
- - service_triggers - Map resource type to description of trigger.
-   Then trigger is passed as argument to `service.create` method of Zabbix IT service API.
-   (default: {"OpenStack.Instance": "Missing data about the VM"})
 
 
 Example of a request:
-
 
 .. code-block:: http
 
@@ -50,8 +47,11 @@ Example of a request:
     }
 
 
-Link service to a project
--------------------------
+Service-project links
+=====================
+
+Create and delete link
+----------------------
 In order to be able to provision Zabbix resources, it must first be linked to a project. To do that,
 POST a connection between project and a service to **/api/zabbix-service-project-link/** as staff user or customer
 owner. For example,
@@ -72,16 +72,19 @@ owner. For example,
 To remove a link, issue DELETE to url of the corresponding connection as staff user or customer owner.
 
 
-Project-service connection list
--------------------------------
+List links
+----------
 To get a list of connections between a project and a Zabbix service, run GET against
 **/api/zabbix-service-project-link/** as authenticated user. Note that a user can only see connections of a project
 where a user has a role.
 
 
-Create a new Zabbix resource (host)
------------------------------------
-A new Zabbix resource (host) can be created by users with project administrator role, customer owner role or with
+Hosts
+=====
+
+Create host
+-----------
+A new Zabbix host can be created by users with project administrator role, customer owner role or with
 staff privilege (is_staff=True). To create a host, client must issue POST request to **/api/zabbix-hosts/** with
 parameters:
 
@@ -93,11 +96,8 @@ parameters:
  - interface_parameters - host interface parameters (optional);
  - host_group_name - host group name (optional);
  - templates - list of template urls (optional).
- - agreed_sla - optional, for example 99.99; if it is specified, Zabbix IT Service is created with trigger
- corresponding to resource type of scope.
 
 For optional fields, such as interface_parameters, host_group_name, templates if value is not specified in request, default value will be taken from service settings.
-
 
 Example of a valid request:
 
@@ -122,8 +122,8 @@ Example of a valid request:
     }
 
 
-Host display
-------------
+Get host
+--------
 
 To get host data - issue GET request against **/api/zabbix-hosts/<host_uuid>/**.
 
@@ -294,50 +294,39 @@ Example request and response:
     ]
 
 
-Cleanup stale IT services
--------------------------
+IT services and SLA calculation
+===============================
+The status of `IT Service <https://www.zabbix.com/documentation/2.0/manual/it_services/>`_
+is affected by the status of its trigger.
 
-Sometimes stale Zabbix IT services (used for SLA calculation) remain in Zabbix, polluting the data.
+List triggers
+-------------
+Triggers are available as Zabbix service properties under */api/zabbix-triggers/* endpoint.
+You may filter triggers by template by passing its ID as GET query parameter.
 
-- GET **/api/zabbix/<service_uuid>/stale_services/**
-  Returns `id` and `name` of all Zabbix IT services that exist in that Zabbix server.
-
-Example request and response:
-
-.. code-block:: http
-
-    GET /api/zabbix/c2c29036f6e441908e5f7ca0f2441431/services/ HTTP/1.1
-    Content-Type: application/json
-    Accept: application/json
-    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
-    Host: example.com
+.. code-block:: javascript
 
     [
         {
-            'name': 'Availability of 06e4b56f-0ec6-4c47-97d8-35b87341e9da',
-            'id': '188'
-        },
-        {
-            'name': 'Availability of 62db4587-9c55-4d79-95f5-adb759fa8344',
-            'id': '189'
-        },
-        {
-            'name': 'Availability of a903bdf7-6e93-40fc-9c72-f7857711d4b6',
-            'id': '190'
+            "url": "http://example.com/api/zabbix-triggers/3e19dc77279d42ccb6c2e21f2a2f6ced/",
+            "uuid": "3e19dc77279d42ccb6c2e21f2a2f6ced",
+            "name": "Host name of zabbix_agentd was changed on {HOST.NAME}",
+            "template": "http://example.com/api/zabbix-templates/8780ebf60ac448c4a3d083f0c71106ff/"
         }
     ]
 
-- DELETE **/api/zabbix/<service_uuid>/stale_services/?id=id1&id=id2**
-  Deletes Zabbix IT services with marked IDs.
+List IT services
+----------------
+IT services are available as Zabbix service properties under */api/zabbix-itservices/* endpoint.
 
-Example request and response:
+.. code-block:: javascript
 
-.. code-block:: http
+    {
+        "agreed_sla": "95.0000",
+        "actual_sla": 100.0,
+        "trigger": "http://example.com/api/zabbix-triggers/5bcdd5c39e2f4750b261cd6aa23be423/",
+        "trigger_name": "Missing data about the VM",
+        "algorithm": "problem, if at least one child has a problem",
+        "sort_order": 1
+    }
 
-    DELETE /api/zabbix/c2c29036f6e441908e5f7ca0f2441431/services/?id=188&id=189 HTTP/1.1
-    Content-Type: application/json
-    Accept: application/json
-    Authorization: Token c84d653b9ec92c6cbac41c706593e66f567a7fa4
-    Host: example.com
-
-    Services 188, 189 are deleted.
