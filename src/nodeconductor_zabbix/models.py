@@ -102,6 +102,10 @@ class Item(models.Model):
 class Trigger(structure_models.ServiceProperty):
     template = models.ForeignKey(Template, related_name='triggers')
 
+    @classmethod
+    def get_url_name(cls):
+        return 'zabbix-trigger'
+
 
 # Zabbix trigger name max length - 255
 Trigger._meta.get_field('name').max_length = 255
