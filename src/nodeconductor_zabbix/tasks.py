@@ -92,12 +92,19 @@ def update_sla(sla_type):
     end_time = int(dt.strftime("%s"))
 
     for itservice in ITService.objects.all():
-        update_itservice_sla(itservice, period, start_time, end_time)
+        update_itservice_sla.delay(itservice.pk, period, start_time, end_time)
 
 
-def update_itservice_sla(itservice, period, start_time, end_time):
+@shared_task
+def update_itservice_sla(itservice_id, period, start_time, end_time):
     logger.debug('Updating SLAs for IT Service %s. Period: %s, start_time: %s, end_time: %s',
-                 itservice, period, start_time, end_time)
+                 itservice_id, period, start_time, end_time)
+
+    try:
+        itservice = ITService.objects.get(pk=itservice_id)
+    except ITService.DoesNotExist:
+        logger.warning('Unable to update SLA for IT Service %s, because it is gone', itservice.id)
+        return
 
     backend = itservice.settings.get_backend()
 
@@ -106,6 +113,10 @@ def update_itservice_sla(itservice, period, start_time, end_time):
         entry, _ = SlaHistory.objects.get_or_create(itservice=itservice, period=period)
         entry.value = Decimal(current_sla)
         entry.save()
+
+        if not itservice.backend_trigger_id:
+            # Skip if there's no trigger
+            return
 
         # update connected events
         events = backend.get_trigger_events(itservice.backend_trigger_id, start_time, end_time)

@@ -171,7 +171,8 @@ class ITServiceSerializer(structure_serializers.BasePropertySerializer):
     class Meta(structure_serializers.BasePropertySerializer.Meta):
         model = models.ITService
         view_name = 'zabbix-itservice-detail'
-        fields = ('agreed_sla', 'actual_sla', 'trigger', 'trigger_name', 'algorithm', 'sort_order')
+        fields = ('name', 'uuid', 'algorithm', 'sort_order',
+                  'agreed_sla', 'actual_sla', 'trigger', 'trigger_name')
 
     def get_actual_sla(self, itservice):
         if 'sla_map' not in self.context:

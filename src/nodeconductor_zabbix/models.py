@@ -124,7 +124,7 @@ class ITService(structure_models.ServiceProperty):
     agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
 
     host = models.ForeignKey(Host, on_delete=models.PROTECT, null=True, blank=True)
-    backend_trigger_id = models.CharField(max_length=64)
+    backend_trigger_id = models.CharField(max_length=64, null=True, blank=True)
     trigger = models.ForeignKey(Trigger, null=True, blank=True)
 
     @classmethod

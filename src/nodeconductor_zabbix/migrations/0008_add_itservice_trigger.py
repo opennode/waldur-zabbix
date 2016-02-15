@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
                 ('algorithm', models.PositiveSmallIntegerField(default=0, choices=[(0, b'do not calculate'), (1, b'problem, if at least one child has a problem'), (2, b'problem, if all children have problems')])),
                 ('sort_order', models.PositiveSmallIntegerField(default=1)),
                 ('host', models.ForeignKey(on_delete=models.deletion.PROTECT, blank=True, to='nodeconductor_zabbix.Host', null=True)),
-                ('backend_trigger_id', models.CharField(max_length=64)),
+                ('backend_trigger_id', models.CharField(max_length=64, null=True, blank=True)),
             ],
             options={
                 'abstract': False,
