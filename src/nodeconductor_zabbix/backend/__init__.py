@@ -115,7 +115,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         'password': ''
     }
 
-    TREND_DELAY_SECONDS = 60 * 60 # One hour
+    TREND_DELAY_SECONDS = 60 * 60  # One hour
     HISTORY_DELAY_SECONDS = 15 * 60
 
     def __init__(self, settings):
@@ -151,7 +151,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         for name in self.templates_names:
             if not models.Template.objects.filter(name=name).exists():
                 raise ZabbixBackendError('Cannot find template with name "%s".' % name)
-        if not self.options.get('interface_parameters'):
+        if not self.interface_parameters:
             raise ZabbixBackendError('Interface parameters should not be empty.')
 
     def provision_host(self, host):
