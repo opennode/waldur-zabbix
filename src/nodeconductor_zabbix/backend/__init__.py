@@ -262,7 +262,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                 backend_id=zabbix_trigger['triggerid'],
                 settings=template.settings,
                 defaults={'name': zabbix_trigger['description']})
-        logger.debug('Successfully pulled Zabbix triggers for template %s.', template.name)
+        logger.info('Successfully pulled Zabbix triggers for template %s.', template.name)
 
     def pull_items(self, template):
         """
@@ -299,7 +299,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                         update_fields.append(name)
                 if update_fields:
                     nc_item.save(update_fields=update_fields)
-        logger.debug('Successfully pulled Zabbix items for template %s.', template.name)
+        logger.info('Successfully pulled Zabbix items for template %s.', template.name)
 
     def pull_itservices(self):
         """
@@ -344,7 +344,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                 if update_fields:
                     nc_service.save(update_fields=update_fields)
 
-        logger.debug('Successfully pulled Zabbix IT services for settings %s.', self.settings)
+        logger.info('Successfully pulled Zabbix IT services for settings %s.', self.settings)
 
     def _get_triggers_map(self, zabbix_services):
         """
