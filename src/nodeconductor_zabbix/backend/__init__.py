@@ -484,6 +484,17 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             message = 'Can not get Zabbix IT service SLA value for service with ID %s. Exception: %s'
             raise ZabbixBackendError(message % (service_id, e))
 
+    def get_itservice_status(self, service_id):
+        try:
+            data = self.api.service.get(
+                filter={'serviceids': service_id},
+                output=['status']
+            )
+            return data[0]['status']
+        except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
+            message = 'Can not get status of Zabbix IT service with ID %s. Exception: %s'
+            raise ZabbixBackendError(message % (service_id, e))
+
     def get_trigger_events(self, trigger_id, start_time, end_time):
         try:
             event_data = self.api.event.get(

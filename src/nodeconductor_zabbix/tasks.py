@@ -114,18 +114,27 @@ def update_itservice_sla(itservice_id, period, start_time, end_time):
         entry.value = Decimal(current_sla)
         entry.save()
 
-        if not itservice.backend_trigger_id:
-            # Skip if there's no trigger
-            return
+        if itservice.backend_trigger_id:
+            # update connected events
+            events = backend.get_trigger_events(itservice.backend_trigger_id, start_time, end_time)
+            for event in events:
+                event_state = 'U' if int(event['value']) == 0 else 'D'
+                entry.events.get_or_create(
+                    timestamp=int(event['timestamp']),
+                    state=event_state
+                )
 
-        # update connected events
-        events = backend.get_trigger_events(itservice.backend_trigger_id, start_time, end_time)
-        for event in events:
-            event_state = 'U' if int(event['value']) == 0 else 'D'
-            entry.events.get_or_create(
-                timestamp=int(event['timestamp']),
-                state=event_state
+        if itservice.field_name and itservice.host and itservice.host.scope:
+            status = None
+            try:
+                status = backend.get_itservice_status(itservice.backend_id) == '0'
+            except Exception:
+                pass
+            itservice.host.scope.monitoring.update_or_create(
+                name=itservice.field_name,
+                defaults={'value': status}
             )
+
     except ZabbixBackendError as e:
         logger.warning('Unable to update SLA for IT Service %s. Reason: %s', itservice.id, e)
 

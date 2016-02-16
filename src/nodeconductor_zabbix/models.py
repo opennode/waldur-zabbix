@@ -131,6 +131,9 @@ class ITService(structure_models.ServiceProperty):
     backend_trigger_id = models.CharField(max_length=64, null=True, blank=True)
     trigger = models.ForeignKey(Trigger, null=True, blank=True)
 
+    # Value of name field for nodeconductor.monitoring.MonitoringData
+    field_name = models.CharField(max_length=150, null=True, blank=True)
+
     @classmethod
     def get_url_name(cls):
         return 'zabbix-itservice'
