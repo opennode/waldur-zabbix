@@ -129,14 +129,14 @@ def update_itservice_sla(itservice_id, period, start_time, end_time):
             try:
                 status = backend.get_itservice_status(itservice.backend_id) == '0'
             except Exception:
-                pass
+                logger.warning('Status of Zabbix IT service %s is unknown, data is unavailable.', itservice_id)
             itservice.host.scope.monitoring.update_or_create(
                 name=itservice.field_name,
                 defaults={'value': status}
             )
 
     except ZabbixBackendError as e:
-        logger.warning('Unable to update SLA for IT Service %s. Reason: %s', itservice.id, e)
+        logger.warning('Unable to update SLA for IT Service %s. Reason: %s', itservice_id, e)
 
 
 @shared_task(name='nodeconductor.zabbix.provision_itservice')

@@ -491,9 +491,13 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                 output=['status']
             )
             return data[0]['status']
-        except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
-            message = 'Can not get status of Zabbix IT service with ID %s. Exception: %s'
-            raise ZabbixBackendError(message % (service_id, e))
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            raise ZabbixBackendError('Can not get status of Zabbix IT service with ID %s. Exception: %s',
+                                     service_id, e)
+        except IndexError:
+            raise ZabbixBackendError('Zabbix IT service with ID %s is not found', service_id)
+        except KeyError:
+            raise ZabbixBackendError('Status of Zabbix IT service with ID %s is not found', service_id)
 
     def get_trigger_events(self, trigger_id, start_time, end_time):
         try:
