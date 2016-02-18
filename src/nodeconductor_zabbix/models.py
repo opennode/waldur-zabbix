@@ -1,7 +1,10 @@
+from __future__ import unicode_literals
+
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
@@ -136,6 +139,7 @@ class ITService(structure_models.ServiceProperty):
         return 'zabbix-itservice'
 
 
+@python_2_unicode_compatible
 class SlaHistory(models.Model):
     itservice = models.ForeignKey(ITService)
     period = models.CharField(max_length=10)
@@ -150,6 +154,7 @@ class SlaHistory(models.Model):
         return 'SLA for %s during %s: %s' % (self.itservice, self.period, self.value)
 
 
+@python_2_unicode_compatible
 class SlaHistoryEvent(models.Model):
     EVENTS = (
         ('U', 'DOWN'),
