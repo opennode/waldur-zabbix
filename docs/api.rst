@@ -330,3 +330,42 @@ IT services are available as Zabbix service properties under */api/zabbix-itserv
         "sort_order": 1
     }
 
+SLA periods
+-----------
+
+IT services list is displaying current SLAs for each of the items.
+By default, SLA period is set to the current month. To change the period pass it as a query argument:
+
+- ?period=YYYY-MM - return a list with SLAs for a given month
+- ?period=YYYY - return a list with SLAs for a given year
+
+If SLA for the given period is not known or not present, it will be shown as **null** in the response.
+
+SLA events
+----------
+
+IT service SLAs are connected with occurrences of events. To get a list of such events issue a GET request to
+*/resources/<service_uuid>/events/*. Optionally period can be supplied using the format defined above.
+
+The output contains a list of states and timestamps when the state was reached. The list is sorted in descending order
+by the timestamp.
+
+Example output:
+
+.. code-block:: javascript
+
+    [
+        {
+            "timestamp": 1418043540,
+            "state": "U"
+        },
+        {
+            "timestamp": 1417928550,
+            "state": "D"
+        },
+        {
+            "timestamp": 1417928490,
+            "state": "U"
+        }
+    ]
+

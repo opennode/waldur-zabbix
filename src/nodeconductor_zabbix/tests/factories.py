@@ -5,6 +5,11 @@ from django.core.urlresolvers import reverse
 from nodeconductor.structure.tests import factories as structure_factories
 
 from .. import models
+from ..apps import ZabbixConfig
+
+
+class ServiceSettingsFactory(structure_factories.ServiceSettingsFactory):
+    type=ZabbixConfig.service_name
 
 
 class ZabbixServiceFactory(factory.DjangoModelFactory):
@@ -12,7 +17,7 @@ class ZabbixServiceFactory(factory.DjangoModelFactory):
         model = models.ZabbixService
 
     name = factory.Sequence(lambda n: 'service%s' % n)
-    settings = factory.SubFactory(structure_factories.ServiceSettingsFactory)
+    settings = factory.SubFactory(ServiceSettingsFactory)
     customer = factory.SubFactory(structure_factories.CustomerFactory)
 
     @classmethod
@@ -25,6 +30,26 @@ class ZabbixServiceFactory(factory.DjangoModelFactory):
     @classmethod
     def get_list_url(cls):
         return 'http://testserver' + reverse('zabbix-list')
+
+
+class ITServiceFactory(factory.DjangoModelFactory):
+    class Meta(object):
+        model = models.ITService
+
+    settings = factory.SubFactory(ServiceSettingsFactory)
+    name = factory.Sequence(lambda n: 'itservice%s' % n)
+    backend_id = factory.Sequence(lambda n: 'itservice-id%s' % n)
+
+    @classmethod
+    def get_url(cls, service=None, action=None):
+        if service is None:
+            service = ITServiceFactory()
+        url = 'http://testserver' + reverse('zabbix-itservice-detail', kwargs={'uuid': service.uuid})
+        return url if action is None else url + action + '/'
+
+    @classmethod
+    def get_events_url(cls, service):
+        return cls.get_url(service, 'events')
 
 
 class ZabbixServiceProjectLinkFactory(factory.DjangoModelFactory):

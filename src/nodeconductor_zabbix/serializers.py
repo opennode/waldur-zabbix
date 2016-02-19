@@ -210,3 +210,8 @@ class TriggerSerializer(structure_serializers.BasePropertySerializer):
         extra_kwargs = {
             'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-trigger-detail'},
         }
+
+
+class SlaHistoryEventSerializer(serializers.Serializer):
+    timestamp = serializers.IntegerField()
+    state = serializers.CharField()
