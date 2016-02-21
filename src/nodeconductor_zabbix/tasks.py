@@ -217,4 +217,4 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_name, monitoring_i
 def after_creation_monitoring_item_update(host_uuid, config):
     item_value = update_host_scope_monitoring_items(
         host_uuid, config['zabbix_item_name'], config['monitoring_item_name'])
-    return item_value in config.get('after_creation_update_terminate_values', [])
+    return item_value in config.get('after_creation_update_terminate_values', []) or item_value is None
