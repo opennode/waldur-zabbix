@@ -147,7 +147,6 @@ class ZabbixRealBackend(ZabbixBaseBackend):
     def sync(self):
         self._get_or_create_group_id(self.host_group_name)
         self.pull_templates()
-        self.pull_itservices()
         for name in self.templates_names:
             if not models.Template.objects.filter(name=name).exists():
                 raise ZabbixBackendError('Cannot find template with name "%s".' % name)
@@ -301,6 +300,17 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                     nc_item.save(update_fields=update_fields)
         logger.info('Successfully pulled Zabbix items for template %s.', template.name)
 
+    def get_item_last_value(self, host_id, key, **kwargs):
+        try:
+            items = self.api.item.get(hostids=host_id, filter={'key_': 'application.status'}, output=['lastvalue'])
+        except pyzabbix.ZabbixAPIException as e:
+            raise ZabbixBackendError('Cannot get zabbix items. Exception: %s' % e)
+        try:
+            return items[0]['lastvalue']
+        except IndexError:
+            raise ZabbixBackendError('Cannot find item with key "%s" for host with id %s' % (key, host_id))
+
+    # XXX: This method should be rewrited - we need to pull only IT services that were connected to hosts.
     def pull_itservices(self):
         """
         Update IT services
@@ -483,6 +493,23 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
             message = 'Can not get Zabbix IT service SLA value for service with ID %s. Exception: %s'
             raise ZabbixBackendError(message % (service_id, e))
+
+    def get_itservice_status(self, service_id):
+        try:
+            data = self.api.service.get(
+                filter={'serviceids': service_id},
+                output=['status']
+            )
+            return data[0]['status']
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            raise ZabbixBackendError('Can not get status of Zabbix IT service with ID %s. Exception: %s',
+                                     service_id, e)
+        except IndexError:
+            raise ZabbixBackendError('Zabbix IT service with ID %s is not found. '
+                                     'Response is %s', service_id, data)
+        except KeyError:
+            raise ZabbixBackendError('Status of Zabbix IT service with ID %s is not found. '
+                                     'Response is %s', service_id, data)
 
     def get_trigger_events(self, trigger_id, start_time, end_time):
         try:

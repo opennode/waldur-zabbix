@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+from datetime import timedelta
+
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -31,6 +33,23 @@ class ZabbixServiceProjectLink(structure_models.ServiceProjectLink):
 
 class Host(structure_models.Resource):
     VISIBLE_NAME_MAX_LENGTH = 64
+
+    # list of items that are added as monitoring items to hosts scope.
+    # parameters:
+    #  zabbix_item_name - name of zabbix item,
+    #  monitoring_item_name - name of monitoring item that will be attached to host scope,
+    #  after_creation_update - True if monitoring item need to be updated frequently after host creation,
+    #  after_creation_update_terminate_values - stop after_creation_update if monitoring item value is one of
+    #                                           terminated values.
+    MONITORING_ITEMS_CONFIGS = [
+        {
+            'zabbix_item_name': 'application.status',
+            'monitoring_item_name': 'application_state',
+            'after_creation_update': True,
+            'after_creation_update_terminate_values': ['0'],
+        }
+    ]
+
     service_project_link = models.ForeignKey(ZabbixServiceProjectLink, related_name='hosts', on_delete=models.PROTECT)
     visible_name = models.CharField(_('visible name'), max_length=VISIBLE_NAME_MAX_LENGTH)
     interface_parameters = JSONField(blank=True)
@@ -74,6 +93,7 @@ class Template(structure_models.ServiceProperty):
         return 'zabbix-template'
 
 
+@python_2_unicode_compatible
 class Item(models.Model):
     class ValueTypes:
         FLOAT = 0
@@ -100,6 +120,9 @@ class Item(models.Model):
 
     def is_byte(self):
         return self.units == 'B'
+
+    def __str__(self):
+        return self.name
 
 
 class Trigger(structure_models.ServiceProperty):
