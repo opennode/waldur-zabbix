@@ -40,13 +40,13 @@ class Host(structure_models.Resource):
     #  monitoring_item_name - name of monitoring item that will be attached to host scope,
     #  after_creation_update - True if monitoring item need to be updated frequently after host creation,
     #  after_creation_update_terminate_values - stop after_creation_update if monitoring item value is one of
-    #                                           reminated values.
+    #                                           terminated values.
     MONITORING_ITEMS_CONFIGS = [
         {
             'zabbix_item_name': 'application.status',
             'monitoring_item_name': 'application_state',
             'after_creation_update': True,
-            'after_creation_update_terminate_values': [],
+            'after_creation_update_terminate_values': ['0'],
         }
     ]
 
