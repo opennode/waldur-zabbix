@@ -3,11 +3,12 @@ from decimal import Decimal
 import logging
 
 from celery import shared_task
+from django.utils import timezone
 
 from nodeconductor.core.tasks import save_error_message, transition
 
 from .backend import ZabbixBackendError
-from .models import Host, SlaHistory, ITService
+from .models import Host, SlaHistory, ITService, Item
 
 
 logger = logging.getLogger(__name__)
@@ -123,18 +124,6 @@ def update_itservice_sla(itservice_id, period, start_time, end_time):
                     timestamp=int(event['timestamp']),
                     state=event_state
                 )
-
-        if itservice.field_name and itservice.host and itservice.host.scope:
-            status = None
-            try:
-                status = backend.get_itservice_status(itservice.backend_id) == '0'
-            except Exception:
-                logger.warning('Status of Zabbix IT service %s is unknown, data is unavailable.', itservice_id)
-            itservice.host.scope.monitoring.update_or_create(
-                name=itservice.field_name,
-                defaults={'value': status}
-            )
-
     except ZabbixBackendError as e:
         logger.warning('Unable to update SLA for IT Service %s. Reason: %s', itservice_id, e)
 
@@ -190,3 +179,34 @@ def set_itservice_online(host_uuid, transition_entity=None):
 @transition(ITService, 'set_erred')
 def set_itservice_erred(host_uuid, transition_entity=None):
     pass
+
+
+@shared_task(name='nodeconductor.zabbix.update_monitoring_items')
+def update_monitoring_items(is_frequent=False):
+    """ Regulary update value of monitored resources  """
+    hosts = Host.objects.filter(object_id__isnull=False, state=Host.States.ONLINE)
+    if is_frequent:
+        hosts = hosts.filter(created__gte=timezone.now() - Host.FREQUENT_UPDATE_DURATION)
+    for host in hosts:
+        update_host_scope_monitoring_items.delay(host.uuid.hex, is_frequent=is_frequent)
+
+    if not is_frequent:
+        logger.info('Successfully scheduled monitoring data update for zabbix hosts.')
+    else:
+        logger.info('Successfully scheduled post creation monitoring data update for newly created zabbix hosts.')
+
+
+@shared_task
+def update_host_scope_monitoring_items(host_uuid, is_frequent=False):
+    host = Host.objects.get(uuid=host_uuid)
+    for config in host.MONITORING_ITEMS_CONFIGS:
+        if not Item.objects.filter(template__hosts=host, name=config['zabbix_item_name']).exists():
+            continue
+        if is_frequent and not config['is_frequent']:
+            continue
+        value = host.get_backend().get_item_last_value(host.backend_id, key=config['zabbix_item_name'])
+        host.scope.monitoring_items.update_or_create(
+            name=config['monitoring_item_name'],
+            defaults={'value': value},
+        )
+    logger.info('Successfully updated monitoring items for host %s (%s)', host.visible_name, host.uuid.hex)
