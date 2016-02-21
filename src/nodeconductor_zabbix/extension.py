@@ -30,9 +30,4 @@ class ZabbixExtension(NodeConductorExtension):
                 'task': 'nodeconductor.zabbix.update_monitoring_items',
                 'schedule': timedelta(minutes=10),
             },
-            'update-monitoring-items-frequent': {
-                'task': 'nodeconductor.zabbix.update_monitoring_items',
-                'schedule': timedelta(minutes=1),
-                'kwargs': {'is_frequent': True},
-            },
         }

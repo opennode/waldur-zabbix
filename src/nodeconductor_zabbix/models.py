@@ -38,15 +38,17 @@ class Host(structure_models.Resource):
     # parameters:
     #  zabbix_item_name - name of zabbix item,
     #  monitoring_item_name - name of monitoring item that will be attached to host scope,
-    #  is_frequent - True if monitoring item need to be updated frequently after host creation.
+    #  after_creation_update - True if monitoring item need to be updated frequently after host creation,
+    #  after_creation_update_terminate_values - stop after_creation_update if monitoring item value is one of
+    #                                           reminated values.
     MONITORING_ITEMS_CONFIGS = [
         {
             'zabbix_item_name': 'application.status',
             'monitoring_item_name': 'application_state',
-            'is_frequent': True,
-        },
+            'after_creation_update': True,
+            'after_creation_update_terminate_values': [],
+        }
     ]
-    FREQUENT_UPDATE_DURATION = timedelta(hours=2)
 
     service_project_link = models.ForeignKey(ZabbixServiceProjectLink, related_name='hosts', on_delete=models.PROTECT)
     visible_name = models.CharField(_('visible name'), max_length=VISIBLE_NAME_MAX_LENGTH)
