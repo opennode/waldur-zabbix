@@ -62,7 +62,6 @@ def set_host_online(host_uuid, transition_entity=None):
     host = transition_entity
     if host.scope:
         for config in Host.MONITORING_ITEMS_CONFIGS:
-            print 'config', config
             after_creation_monitoring_item_update.delay(host_uuid, config)
             logger.info('After creation monitoring items update process was started for host %s (%s)',
                         host.visible_name, host.uuid.hex)
