@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 from datetime import timedelta
 
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -158,6 +160,7 @@ class ITService(structure_models.ServiceProperty):
         return 'zabbix-itservice'
 
 
+@python_2_unicode_compatible
 class SlaHistory(models.Model):
     itservice = models.ForeignKey(ITService)
     period = models.CharField(max_length=10)
@@ -172,6 +175,7 @@ class SlaHistory(models.Model):
         return 'SLA for %s during %s: %s' % (self.itservice, self.period, self.value)
 
 
+@python_2_unicode_compatible
 class SlaHistoryEvent(models.Model):
     EVENTS = (
         ('U', 'DOWN'),
