@@ -25,5 +25,9 @@ class ZabbixExtension(NodeConductorExtension):
                 'task': 'nodeconductor.zabbix.update_sla',
                 'schedule': timedelta(minutes=10),
                 'args': ('yearly',),
-            }
+            },
+            'update-monitoring-items': {
+                'task': 'nodeconductor.zabbix.update_monitoring_items',
+                'schedule': timedelta(minutes=10),
+            },
         }

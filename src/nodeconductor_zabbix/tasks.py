@@ -4,10 +4,10 @@ import logging
 
 from celery import shared_task
 
-from nodeconductor.core.tasks import save_error_message, transition
+from nodeconductor.core.tasks import save_error_message, transition, retry_if_false
 
 from .backend import ZabbixBackendError
-from .models import Host, SlaHistory, ITService
+from .models import Host, SlaHistory, ITService, Item
 
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,12 @@ def begin_host_destroy(host_uuid, transition_entity=None):
 @shared_task
 @transition(Host, 'set_online')
 def set_host_online(host_uuid, transition_entity=None):
-    pass
+    host = transition_entity
+    if host.scope:
+        for config in Host.MONITORING_ITEMS_CONFIGS:
+            after_creation_monitoring_item_update.delay(host_uuid, config)
+            logger.info('After creation monitoring items update process was started for host %s (%s)',
+                        host.visible_name, host.uuid.hex)
 
 
 @shared_task
@@ -114,20 +119,17 @@ def update_itservice_sla(itservice_id, period, start_time, end_time):
         entry.value = Decimal(current_sla)
         entry.save()
 
-        if not itservice.backend_trigger_id:
-            # Skip if there's no trigger
-            return
-
-        # update connected events
-        events = backend.get_trigger_events(itservice.backend_trigger_id, start_time, end_time)
-        for event in events:
-            event_state = 'U' if int(event['value']) == 0 else 'D'
-            entry.events.get_or_create(
-                timestamp=int(event['timestamp']),
-                state=event_state
-            )
+        if itservice.backend_trigger_id:
+            # update connected events
+            events = backend.get_trigger_events(itservice.backend_trigger_id, start_time, end_time)
+            for event in events:
+                event_state = 'U' if int(event['value']) == 0 else 'D'
+                entry.events.get_or_create(
+                    timestamp=int(event['timestamp']),
+                    state=event_state
+                )
     except ZabbixBackendError as e:
-        logger.warning('Unable to update SLA for IT Service %s. Reason: %s', itservice.id, e)
+        logger.warning('Unable to update SLA for IT Service %s. Reason: %s', itservice_id, e)
 
 
 @shared_task(name='nodeconductor.zabbix.provision_itservice')
@@ -181,3 +183,38 @@ def set_itservice_online(host_uuid, transition_entity=None):
 @transition(ITService, 'set_erred')
 def set_itservice_erred(host_uuid, transition_entity=None):
     pass
+
+
+@shared_task(name='nodeconductor.zabbix.update_monitoring_items')
+def update_monitoring_items():
+    """ Regulary update value of monitored resources  """
+    hosts = Host.objects.filter(object_id__isnull=False, state=Host.States.ONLINE)
+    for host in hosts:
+        for config in host.MONITORING_ITEMS_CONFIGS:
+            update_host_scope_monitoring_items.delay(host.uuid.hex,
+                                                     zabbix_item_name=config['zabbix_item_name'],
+                                                     monitoring_item_name=config['monitoring_item_name'])
+    logger.info('Successfully scheduled monitoring data update for zabbix hosts.')
+
+
+@shared_task
+def update_host_scope_monitoring_items(host_uuid, zabbix_item_name, monitoring_item_name):
+    host = Host.objects.get(uuid=host_uuid)
+    value = None
+    if Item.objects.filter(template__hosts=host, name=zabbix_item_name).exists():
+        value = host.get_backend().get_item_last_value(host.backend_id, key=zabbix_item_name)
+        host.scope.monitoring_items.update_or_create(
+            name=monitoring_item_name,
+            defaults={'value': value},
+        )
+    logger.info('Successfully updated monitoring item %s for host %s (%s). Currect value: %s.',
+                monitoring_item_name, host.visible_name, host.uuid.hex, value)
+    return value
+
+
+@shared_task(max_retries=60, default_retry_delay=60)
+@retry_if_false
+def after_creation_monitoring_item_update(host_uuid, config):
+    item_value = update_host_scope_monitoring_items(
+        host_uuid, config['zabbix_item_name'], config['monitoring_item_name'])
+    return item_value in config.get('after_creation_update_terminate_values', []) or item_value is None
