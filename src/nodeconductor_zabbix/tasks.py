@@ -101,23 +101,30 @@ def update_sla(sla_type):
 
 
 @shared_task
-def update_itservice_sla(itservice_id, period, start_time, end_time):
-    logger.debug('Updating SLAs for IT Service %s. Period: %s, start_time: %s, end_time: %s',
-                 itservice_id, period, start_time, end_time)
+def update_itservice_sla(itservice_pk, period, start_time, end_time):
+    logger.debug('Updating SLAs for IT Service with PK %s. Period: %s, start_time: %s, end_time: %s',
+                 itservice_pk, period, start_time, end_time)
 
     try:
-        itservice = ITService.objects.get(pk=itservice_id)
+        itservice = ITService.objects.get(pk=itservice_pk)
     except ITService.DoesNotExist:
-        logger.warning('Unable to update SLA for IT Service %s, because it is gone', itservice_id)
+        logger.warning('Unable to update SLA for IT Service with PK %s, because it is gone', itservice_pk)
         return
 
-    backend = itservice.settings.get_backend()
+    backend = itservice.host.get_backend()
 
     try:
         current_sla = backend.get_sla(itservice.backend_id, start_time, end_time)
         entry, _ = SlaHistory.objects.get_or_create(itservice=itservice, period=period)
         entry.value = Decimal(current_sla)
         entry.save()
+
+        # Save SLA as monitoring item is IT service is marked as main for host
+        if itservice.host and itservice.host.scope and itservice.is_main:
+            itservice.host.scope.monitoring_items.update_or_create(
+                name='SLA-%s' % period,
+                defaults={'value': current_sla},
+            )
 
         if itservice.backend_trigger_id:
             # update connected events
@@ -129,7 +136,9 @@ def update_itservice_sla(itservice_id, period, start_time, end_time):
                     state=event_state
                 )
     except ZabbixBackendError as e:
-        logger.warning('Unable to update SLA for IT Service %s. Reason: %s', itservice_id, e)
+        logger.warning(
+            'Unable to update SLA for IT Service %s (ID: %s). Reason: %s', itservice.name, itservice.backend_id, e)
+    logger.info('Successfully updated SLA for IT Service %s (ID: %s)', itservice.name, itservice.backend_id)
 
 
 @shared_task(name='nodeconductor.zabbix.provision_itservice')

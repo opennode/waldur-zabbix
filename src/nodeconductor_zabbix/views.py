@@ -100,7 +100,7 @@ class HostViewSet(BaseZabbixResourceViewSet):
         return map(sum_without_none, zip(*rows))
 
 
-class ITServiceViewSet(structure_views.BaseServicePropertyViewSet):
+class ITServiceViewSet(BaseZabbixResourceViewSet):
     queryset = models.ITService.objects.all().select_related('trigger')
     serializer_class = serializers.ITServiceSerializer
     lookup_field = 'uuid'
