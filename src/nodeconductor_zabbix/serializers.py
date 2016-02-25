@@ -215,12 +215,6 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
             if host and not host.templates.filter(id=trigger.template_id).exists():
                 raise serializers.ValidationError("Host templates should contain trigger's template")
 
-            main_itservices = host.itservices.filter(is_main=True)
-            if self.instance:
-                main_itservices = main_itservices.exclude(pk=self.instance.pk)
-            if main_itservices.exists():
-                raise serializers.ValidationError({'is_main': 'Host already have main IT service.'})
-
             if host.service_project_link != attrs['service_project_link']:
                 raise serializers.ValidationError('Host and IT service should belong to the same SPL.')
 

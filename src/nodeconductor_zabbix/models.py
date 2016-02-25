@@ -166,6 +166,9 @@ class ITService(structure_models.Resource):
     backend_trigger_id = models.CharField(max_length=64, null=True, blank=True)
     trigger = models.ForeignKey(Trigger, null=True, blank=True)
 
+    class Meta(object):
+        unique_together = ('host', 'is_main')
+
     @classmethod
     def get_url_name(cls):
         return 'zabbix-itservice'

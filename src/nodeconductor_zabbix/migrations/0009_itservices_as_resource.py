@@ -85,7 +85,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(
             name='itservice',
-            unique_together=set([]),
+            unique_together=set([('host', 'is_main')]),
         ),
         migrations.RemoveField(
             model_name='itservice',
