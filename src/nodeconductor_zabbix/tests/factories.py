@@ -32,11 +32,25 @@ class ZabbixServiceFactory(factory.DjangoModelFactory):
         return 'http://testserver' + reverse('zabbix-list')
 
 
+class ZabbixServiceProjectLinkFactory(factory.DjangoModelFactory):
+    class Meta(object):
+        model = models.ZabbixServiceProjectLink
+
+    service = factory.SubFactory(ZabbixServiceFactory)
+    project = factory.SubFactory(structure_factories.ProjectFactory)
+
+    @classmethod
+    def get_url(cls, spl=None):
+        if spl is None:
+            spl = ZabbixServiceProjectLinkFactory()
+        return 'http://testserver' + reverse('zabbix-spl-detail', kwargs={'pk': spl.pk})
+
+
 class ITServiceFactory(factory.DjangoModelFactory):
     class Meta(object):
         model = models.ITService
 
-    settings = factory.SubFactory(ServiceSettingsFactory)
+    service_project_link = factory.SubFactory(ZabbixServiceProjectLinkFactory)
     name = factory.Sequence(lambda n: 'itservice%s' % n)
     backend_id = factory.Sequence(lambda n: 'itservice-id%s' % n)
 
@@ -50,17 +64,3 @@ class ITServiceFactory(factory.DjangoModelFactory):
     @classmethod
     def get_events_url(cls, service):
         return cls.get_url(service, 'events')
-
-
-class ZabbixServiceProjectLinkFactory(factory.DjangoModelFactory):
-    class Meta(object):
-        model = models.ZabbixServiceProjectLink
-
-    service = factory.SubFactory(ZabbixServiceFactory)
-    project = factory.SubFactory(structure_factories.ProjectFactory)
-
-    @classmethod
-    def get_url(cls, spl=None):
-        if spl is None:
-            spl = ZabbixServiceProjectLinkFactory()
-        return 'http://testserver' + reverse('zabbix-spl-detail', kwargs={'pk': spl.pk})

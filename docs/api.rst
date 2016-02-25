@@ -323,18 +323,18 @@ IT services are available as Zabbix service properties under */api/zabbix-itserv
 
  
    {
-       "url": "http://127.0.0.1:8000/api/zabbix-itservices/db075c3c8d494f5886fc0f6686390624/",
+       "url": "http://example.com/api/zabbix-itservices/db075c3c8d494f5886fc0f6686390624/",
        "uuid": "db075c3c8d494f5886fc0f6686390624",
-       "name": "pavel-test-it-service-2",
+       "name": "example-it-service",
        "description": "",
        "start_time": null,
-       "service": "http://127.0.0.1:8000/api/zabbix/18931f568b344b3fbc8d048cbe806ff6/",
+       "service": "http://example.com/api/zabbix/18931f568b344b3fbc8d048cbe806ff6/",
        "service_name": "TST Zabbix",
        "service_uuid": "18931f568b344b3fbc8d048cbe806ff6",
-       "project": "http://127.0.0.1:8000/api/projects/f43171f9374442b78ce7e842effea0aa/",
+       "project": "http://example.com/api/projects/f43171f9374442b78ce7e842effea0aa/",
        "project_name": "TST PaaS project",
        "project_uuid": "f43171f9374442b78ce7e842effea0aa",
-       "customer": "http://127.0.0.1:8000/api/customers/691f62f8d89e44d6a69d02b3b5334f7c/",
+       "customer": "http://example.com/api/customers/691f62f8d89e44d6a69d02b3b5334f7c/",
        "customer_name": "TST Paas customer",
        "customer_native_name": "",
        "customer_abbreviation": "",
@@ -346,12 +346,12 @@ IT services are available as Zabbix service properties under */api/zabbix-itserv
        "created": "2016-02-22T06:56:37.393Z",
        "backend_id": "1590",
        "access_url": null,
-       "host": "http://127.0.0.1:8000/api/zabbix-hosts/f8e46835e4654410915bd24c2f784876/",
+       "host": "http://example.com/api/zabbix-hosts/f8e46835e4654410915bd24c2f784876/",
        "algorithm": "problem, if at least one child has a problem",
        "sort_order": 1,
        "agreed_sla": "99.0000",
        "actual_sla": 100.0,
-       "trigger": "http://127.0.0.1:8000/api/zabbix-triggers/765b979ec9b34038b1b214f6be2bb0b5/",
+       "trigger": "http://example.com/api/zabbix-triggers/765b979ec9b34038b1b214f6be2bb0b5/",
        "trigger_name": "PostgreSQL is not available",
        "is_main": true
    }

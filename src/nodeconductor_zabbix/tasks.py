@@ -119,7 +119,7 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
         entry.value = Decimal(current_sla)
         entry.save()
 
-        # Save SLA as monitoring item is IT service is marked as main for host
+        # Save SLA as monitoring item if IT service is marked as main for host
         if itservice.host and itservice.host.scope and itservice.is_main:
             itservice.host.scope.monitoring_items.update_or_create(
                 name='SLA-%s' % period,
