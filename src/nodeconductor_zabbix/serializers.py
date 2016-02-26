@@ -4,7 +4,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from . import models, backend
-from nodeconductor.core.fields import JsonField
+from nodeconductor.core.fields import JsonField, MappedChoiceField
 from nodeconductor.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
 from nodeconductor.structure import serializers as structure_serializers, models as structure_models
 
@@ -157,23 +157,42 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         return host
 
 
-class ITServiceSerializer(structure_serializers.BasePropertySerializer):
-    trigger = serializers.HyperlinkedRelatedField(
-        view_name='zabbix-trigger-detail',
-        queryset=models.Trigger.objects.all().select_related('settings'),
+class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
+    service = serializers.HyperlinkedRelatedField(
+        source='service_project_link.service',
+        view_name='zabbix-detail',
+        read_only=True,
         lookup_field='uuid')
 
+    service_project_link = serializers.HyperlinkedRelatedField(
+        view_name='zabbix-spl-detail',
+        queryset=models.ZabbixServiceProjectLink.objects.all(),
+        write_only=True)
+
+    host = serializers.HyperlinkedRelatedField(
+        view_name='zabbix-host-detail',
+        queryset=models.Host.objects.all(),
+        lookup_field='uuid')
+
+    trigger = serializers.HyperlinkedRelatedField(
+        view_name='zabbix-trigger-detail',
+        queryset=models.Trigger.objects.order_by('name').select_related('settings'),
+        lookup_field='uuid')
+
+    algorithm = MappedChoiceField(
+        choices={v: v for _, v in models.ITService.Algorithm.CHOICES},
+        choice_mappings={v: k for k, v in models.ITService.Algorithm.CHOICES},
+    )
     trigger_name = serializers.ReadOnlyField(source='trigger.name')
-
     actual_sla = serializers.SerializerMethodField()
-    algorithm = serializers.ReadOnlyField(source='get_algorithm_display')
 
-    class Meta(structure_serializers.BasePropertySerializer.Meta):
+    class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.ITService
         view_name = 'zabbix-itservice-detail'
-        fields = ('name', 'uuid', 'algorithm', 'sort_order',
-                  'agreed_sla', 'actual_sla', 'trigger', 'trigger_name')
+        fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
+            'host', 'algorithm', 'sort_order', 'agreed_sla', 'actual_sla', 'trigger', 'trigger_name', 'is_main')
 
+    # XXX: Should we display sla here?
     def get_actual_sla(self, itservice):
         if 'sla_map' not in self.context:
             period = self.context.get('period')
@@ -189,11 +208,15 @@ class ITServiceSerializer(structure_serializers.BasePropertySerializer):
         return self.context['sla_map'].get(itservice.id)
 
     def validate(self, attrs):
-        host = attrs['host']
-        trigger = attrs['trigger']
+        host = attrs.get('host')
+        if host:
+            trigger = attrs['trigger']
 
-        if not host.templates.filter(id=trigger.template_id).exists():
-            raise serializers.ValidationError("Host templates should contain trigger's template")
+            if host and not host.templates.filter(id=trigger.template_id).exists():
+                raise serializers.ValidationError("Host templates should contain trigger's template")
+
+            if host.service_project_link != attrs['service_project_link']:
+                raise serializers.ValidationError('Host and IT service should belong to the same SPL.')
 
         return attrs
 
@@ -210,3 +233,8 @@ class TriggerSerializer(structure_serializers.BasePropertySerializer):
         extra_kwargs = {
             'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-trigger-detail'},
         }
+
+
+class SlaHistoryEventSerializer(serializers.Serializer):
+    timestamp = serializers.IntegerField()
+    state = serializers.CharField()

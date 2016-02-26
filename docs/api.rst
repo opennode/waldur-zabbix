@@ -321,12 +321,77 @@ IT services are available as Zabbix service properties under */api/zabbix-itserv
 
 .. code-block:: javascript
 
-    {
-        "agreed_sla": "95.0000",
-        "actual_sla": 100.0,
-        "trigger": "http://example.com/api/zabbix-triggers/5bcdd5c39e2f4750b261cd6aa23be423/",
-        "trigger_name": "Missing data about the VM",
-        "algorithm": "problem, if at least one child has a problem",
-        "sort_order": 1
-    }
+ 
+   {
+       "url": "http://example.com/api/zabbix-itservices/db075c3c8d494f5886fc0f6686390624/",
+       "uuid": "db075c3c8d494f5886fc0f6686390624",
+       "name": "example-it-service",
+       "description": "",
+       "start_time": null,
+       "service": "http://example.com/api/zabbix/18931f568b344b3fbc8d048cbe806ff6/",
+       "service_name": "TST Zabbix",
+       "service_uuid": "18931f568b344b3fbc8d048cbe806ff6",
+       "project": "http://example.com/api/projects/f43171f9374442b78ce7e842effea0aa/",
+       "project_name": "TST PaaS project",
+       "project_uuid": "f43171f9374442b78ce7e842effea0aa",
+       "customer": "http://example.com/api/customers/691f62f8d89e44d6a69d02b3b5334f7c/",
+       "customer_name": "TST Paas customer",
+       "customer_native_name": "",
+       "customer_abbreviation": "",
+       "project_groups": [],
+       "tags": [],
+       "error_message": "",
+       "resource_type": "Zabbix.ITService",
+       "state": "Online",
+       "created": "2016-02-22T06:56:37.393Z",
+       "backend_id": "1590",
+       "access_url": null,
+       "host": "http://example.com/api/zabbix-hosts/f8e46835e4654410915bd24c2f784876/",
+       "algorithm": "problem, if at least one child has a problem",
+       "sort_order": 1,
+       "agreed_sla": "99.0000",
+       "actual_sla": 100.0,
+       "trigger": "http://example.com/api/zabbix-triggers/765b979ec9b34038b1b214f6be2bb0b5/",
+       "trigger_name": "PostgreSQL is not available",
+       "is_main": true
+   }
+ 
 
+SLA periods
+-----------
+
+IT services list is displaying current SLAs for each of the items.
+By default, SLA period is set to the current month. To change the period pass it as a query argument:
+
+- ?period=YYYY-MM - return a list with SLAs for a given month
+- ?period=YYYY - return a list with SLAs for a given year
+
+If SLA for the given period is not known or not present, it will be shown as **null** in the response.
+
+SLA events
+----------
+
+IT service SLAs are connected with occurrences of events. To get a list of such events issue a GET request to
+*/zabbix-itservices/<service_uuid>/events/*. Optionally period can be supplied using the format defined above.
+
+The output contains a list of states and timestamps when the state was reached. The list is sorted in descending order
+by the timestamp.
+
+Example output:
+
+.. code-block:: javascript
+
+    [
+        {
+            "timestamp": 1418043540,
+            "state": "U"
+        },
+        {
+            "timestamp": 1417928550,
+            "state": "D"
+        },
+        {
+            "timestamp": 1417928490,
+            "state": "U"
+        }
+    ]

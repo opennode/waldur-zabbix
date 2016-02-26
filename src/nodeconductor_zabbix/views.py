@@ -2,6 +2,7 @@ import datetime
 
 from rest_framework import status
 from rest_framework.decorators import detail_route, list_route
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from nodeconductor.core.serializers import HistorySerializer
@@ -99,9 +100,10 @@ class HostViewSet(BaseZabbixResourceViewSet):
         return map(sum_without_none, zip(*rows))
 
 
-class ITServiceViewSet(structure_views.BaseServicePropertyViewSet):
+class ITServiceViewSet(BaseZabbixResourceViewSet):
     queryset = models.ITService.objects.all().select_related('trigger')
     serializer_class = serializers.ITServiceSerializer
+    lookup_field = 'uuid'
 
     def _get_period(self):
         period = self.request.query_params.get('period')
@@ -117,6 +119,19 @@ class ITServiceViewSet(structure_views.BaseServicePropertyViewSet):
         context = super(ITServiceViewSet, self).get_serializer_context()
         context['period'] = self._get_period()
         return context
+
+    @detail_route()
+    def events(self, request, uuid):
+        service = self.get_object()
+        period = self._get_period()
+
+        history = get_object_or_404(models.SlaHistory, itservice=service, period=period)
+        events = list(history.events.all().order_by('-timestamp').values('timestamp', 'state'))
+
+        serializer = serializers.SlaHistoryEventSerializer(data=events, many=True)
+        serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):

@@ -18,8 +18,9 @@ class ZabbixConfig(AppConfig):
 
         # templates
         from nodeconductor.template import TemplateRegistry
-        from nodeconductor_zabbix.template import HostProvisionTemplateForm
+        from nodeconductor_zabbix.template import HostProvisionTemplateForm, ITServiceProvisionTemplateForm
         TemplateRegistry.register(HostProvisionTemplateForm)
+        TemplateRegistry.register(ITServiceProvisionTemplateForm)
 
         from . import handlers
         for index, resource_model in enumerate(structure_models.Resource.get_all_models()):

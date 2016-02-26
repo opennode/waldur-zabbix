@@ -31,6 +31,7 @@ class ZabbixServiceProjectLink(structure_models.ServiceProjectLink):
         return 'zabbix-spl'
 
 
+@python_2_unicode_compatible
 class Host(structure_models.Resource):
     VISIBLE_NAME_MAX_LENGTH = 64
 
@@ -61,6 +62,9 @@ class Host(structure_models.Resource):
     scope = GenericForeignKey('content_type', 'object_id')
 
     objects = managers.HostManager('scope')
+
+    def __str__(self):
+        return '%s (%s)' % (self.name, self.visible_name)
 
     @classmethod
     def get_url_name(cls):
@@ -137,7 +141,7 @@ class Trigger(structure_models.ServiceProperty):
 Trigger._meta.get_field('name').max_length = 255
 
 
-class ITService(structure_models.ServiceProperty):
+class ITService(structure_models.Resource):
     class Algorithm:
         SKIP = 0
         ANY = 1
@@ -149,13 +153,21 @@ class ITService(structure_models.ServiceProperty):
             (ALL, 'problem, if all children have problems')
         )
 
+    service_project_link = models.ForeignKey(
+        ZabbixServiceProjectLink, related_name='itservices', on_delete=models.PROTECT)
+    host = models.ForeignKey(Host, related_name='itservices', blank=True, null=True)
+    is_main = models.BooleanField(
+        default=True, help_text='Main IT service SLA will be added to hosts resource as monitoring item.')
+
     algorithm = models.PositiveSmallIntegerField(choices=Algorithm.CHOICES, default=Algorithm.SKIP)
     sort_order = models.PositiveSmallIntegerField(default=1)
     agreed_sla = models.DecimalField(max_digits=6, decimal_places=4, null=True, blank=True)
 
-    host = models.ForeignKey(Host, on_delete=models.PROTECT, null=True, blank=True)
     backend_trigger_id = models.CharField(max_length=64, null=True, blank=True)
     trigger = models.ForeignKey(Trigger, null=True, blank=True)
+
+    class Meta(object):
+        unique_together = ('host', 'is_main')
 
     @classmethod
     def get_url_name(cls):
