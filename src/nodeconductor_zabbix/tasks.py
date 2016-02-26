@@ -1,14 +1,13 @@
 import datetime
-from decimal import Decimal
 import logging
 
 from celery import shared_task
 
 from nodeconductor.core.tasks import save_error_message, transition, retry_if_false
+from nodeconductor.monitoring.models import ResourceItem, ResourceSla, ResourceState
 
 from .backend import ZabbixBackendError
-from .models import Host, SlaHistory, ITService, Item
-
+from .models import Host, ITService, Item
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +95,7 @@ def update_sla(sla_type):
 
     end_time = int(dt.strftime("%s"))
 
-    for itservice in ITService.objects.all():
+    for itservice in ITService.objects.filter(host__object_id__isnull=False, is_main=True):
         update_itservice_sla.delay(itservice.pk, period, start_time, end_time)
 
 
@@ -112,28 +111,25 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
         return
 
     backend = itservice.host.get_backend()
+    scope = itservice.host.scope
 
     try:
         current_sla = backend.get_sla(itservice.backend_id, start_time, end_time)
-        entry, _ = SlaHistory.objects.get_or_create(itservice=itservice, period=period)
-        entry.value = Decimal(current_sla)
-        entry.save()
-
         # Save SLA as monitoring item if IT service is marked as main for host
-        if itservice.host and itservice.host.scope and itservice.is_main:
-            itservice.host.scope.monitoring_items.update_or_create(
-                name='SLA-%s' % period,
-                defaults={'value': current_sla},
-            )
+        ResourceSla.objects.update_or_create(
+            scope=scope,
+            period=period,
+            defaults={'value': current_sla}
+        )
 
+        # update connected events
         if itservice.backend_trigger_id:
-            # update connected events
             events = backend.get_trigger_events(itservice.backend_trigger_id, start_time, end_time)
             for event in events:
-                event_state = 'U' if int(event['value']) == 0 else 'D'
-                entry.events.get_or_create(
+                ResourceState.objects.get_or_create(
+                    scope=scope,
                     timestamp=int(event['timestamp']),
-                    state=event_state
+                    state=int(event['value']) == 0
                 )
     except ZabbixBackendError as e:
         logger.warning(
@@ -196,7 +192,9 @@ def set_itservice_erred(host_uuid, transition_entity=None):
 
 @shared_task(name='nodeconductor.zabbix.update_monitoring_items')
 def update_monitoring_items():
-    """ Regulary update value of monitored resources  """
+    """
+    Regularly update value of monitored resources
+    """
     hosts = Host.objects.filter(object_id__isnull=False, state=Host.States.ONLINE)
     for host in hosts:
         for config in host.MONITORING_ITEMS_CONFIGS:
@@ -212,11 +210,12 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_name, monitoring_i
     value = None
     if Item.objects.filter(template__hosts=host, name=zabbix_item_name).exists():
         value = host.get_backend().get_item_last_value(host.backend_id, key=zabbix_item_name)
-        host.scope.monitoring_items.update_or_create(
+        ResourceItem.objects.update_or_create(
+            scope=host.scope,
             name=monitoring_item_name,
-            defaults={'value': value},
+            defaults={'value': value}
         )
-    logger.info('Successfully updated monitoring item %s for host %s (%s). Currect value: %s.',
+    logger.info('Successfully updated monitoring item %s for host %s (%s). Correct value: %s.',
                 monitoring_item_name, host.visible_name, host.uuid.hex, value)
     return value
 
