@@ -128,6 +128,7 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
             for event in events:
                 ResourceState.objects.get_or_create(
                     scope=scope,
+                    period=period,
                     timestamp=int(event['timestamp']),
                     state=int(event['value']) == 0
                 )

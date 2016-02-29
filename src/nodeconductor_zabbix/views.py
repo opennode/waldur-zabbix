@@ -1,6 +1,5 @@
 from rest_framework import status
 from rest_framework.decorators import detail_route, list_route
-from rest_framework import mixins
 from rest_framework import permissions as rf_permissions
 from rest_framework.response import Response
 from rest_framework import viewsets
@@ -108,12 +107,12 @@ class ITServiceViewSet(BaseZabbixResourceViewSet):
     lookup_field = 'uuid'
 
 
-class ResourceStateViewSet(mixins.UpdateModelMixin,
-                           viewsets.ReadOnlyModelViewSet):
+class ResourceStateViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ResourceState.objects.all()
     serializer_class = serializers.ResourceStateSerializer
     permission_classes = (rf_permissions.IsAuthenticated,)
     filter_backends = (DjangoMappingFilterBackend, filters.HostScopeFilterBackend)
+    filter_class = filters.ResourceStateFilter
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):

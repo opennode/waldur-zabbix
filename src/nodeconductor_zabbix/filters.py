@@ -2,7 +2,7 @@ import django_filters
 from django.contrib.contenttypes.models import ContentType
 
 from nodeconductor.core import filters as core_filters
-from nodeconductor.monitoring.models import ResourceSla, ResourceItem
+from nodeconductor.monitoring.models import ResourceSla, ResourceItem, ResourceState
 from nodeconductor.structure import models as structure_models
 from nodeconductor.structure.filters import BaseServicePropertyFilter, ExternalResourceFilterBackend
 from nodeconductor_zabbix.utils import get_period
@@ -19,6 +19,12 @@ class HostScopeFilterBackend(core_filters.GenericKeyFilterBackend):
 
 class TriggerFilter(BaseServicePropertyFilter):
     template = django_filters.CharFilter(name='template__uuid')
+
+
+class ResourceStateFilter(django_filters.FilterSet):
+    class Meta:
+        model = ResourceState
+    period = django_filters.CharFilter(name='period')
 
 
 class SlaFilter(core_filters.BaseExternalFilter):
