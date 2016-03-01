@@ -1,13 +1,11 @@
 from rest_framework import status
 from rest_framework.decorators import detail_route, list_route
-from rest_framework import permissions as rf_permissions
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
-from rest_framework import viewsets
 
-from nodeconductor.core.filters import DjangoMappingFilterBackend
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.utils import datetime_to_timestamp
-from nodeconductor.monitoring.models import ResourceState
+from nodeconductor.monitoring.utils import get_period
 from nodeconductor.structure import views as structure_views
 
 from . import models, serializers, filters
@@ -106,13 +104,18 @@ class ITServiceViewSet(BaseZabbixResourceViewSet):
     serializer_class = serializers.ITServiceSerializer
     lookup_field = 'uuid'
 
+    @detail_route()
+    def events(self, request, uuid):
+        service = self.get_object()
+        period = get_period(request)
 
-class ResourceStateViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = ResourceState.objects.all()
-    serializer_class = serializers.ResourceStateSerializer
-    permission_classes = (rf_permissions.IsAuthenticated,)
-    filter_backends = (DjangoMappingFilterBackend, filters.HostScopeFilterBackend)
-    filter_class = filters.ResourceStateFilter
+        history = get_object_or_404(models.SlaHistory, itservice=service, period=period)
+        events = list(history.events.all().order_by('-timestamp').values('timestamp', 'state'))
+
+        serializer = serializers.SlaHistoryEventSerializer(data=events, many=True)
+        serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):

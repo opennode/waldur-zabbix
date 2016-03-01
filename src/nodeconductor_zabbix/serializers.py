@@ -1,16 +1,12 @@
 import json
-from collections import defaultdict
 
 from django.db import transaction
 from rest_framework import serializers
 
 from nodeconductor.core.fields import JsonField, MappedChoiceField
 from nodeconductor.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
-from nodeconductor.core.signals import pre_serializer_fields
-from nodeconductor.monitoring.models import ResourceItem, ResourceSla
 from nodeconductor.structure import serializers as structure_serializers, models as structure_models
 
-from .utils import get_period, filter_for_qs
 from . import models, backend
 
 
@@ -240,48 +236,6 @@ class TriggerSerializer(structure_serializers.BasePropertySerializer):
         }
 
 
-class ResourceStateSerializer(serializers.Serializer):
+class SlaHistoryEventSerializer(serializers.Serializer):
     timestamp = serializers.IntegerField()
-    state = serializers.SerializerMethodField()
-
-    def get_state(self, obj):
-        return obj.state and 'U' or 'D'
-
-
-def get_actual_sla(serializer, resource):
-    if 'sla_map' not in serializer.context:
-        request = serializer.context['request']
-        items = filter_for_qs(ResourceSla, serializer.instance)
-        items = items.filter(period=get_period(request))
-        sla_map = {item.object_id: item.value for item in items}
-
-        serializer.context['sla_map'] = sla_map
-    return serializer.context['sla_map'].get(resource.id)
-
-
-def get_monitoring_items(serializer, resource):
-    if 'monitoring_items' not in serializer.context:
-        items = filter_for_qs(ResourceItem, serializer.instance)
-
-        monitoring_items = defaultdict(dict)
-        for item in items:
-            monitoring_items[item.object_id][item.name] = item.value
-
-        serializer.context['monitoring_items'] = monitoring_items
-    return serializer.context['monitoring_items'].get(resource.id)
-
-
-def add_monitoring_fields(sender, fields, **kwargs):
-    if not issubclass(sender, structure_serializers.BaseResourceSerializer):
-        return
-
-    fields['actual_sla'] = serializers.SerializerMethodField()
-    setattr(sender, 'get_actual_sla', get_actual_sla)
-
-    fields['monitoring_items'] = serializers.SerializerMethodField()
-    setattr(sender, 'get_monitoring_items', get_monitoring_items)
-
-
-pre_serializer_fields.connect(
-    add_monitoring_fields
-)
+    state = serializers.CharField()
