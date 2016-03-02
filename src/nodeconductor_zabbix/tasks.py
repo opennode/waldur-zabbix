@@ -125,7 +125,10 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
             ResourceSla.objects.update_or_create(
                 scope=itservice.host.scope,
                 period=period,
-                defaults={'value': current_sla}
+                defaults={
+                    'value': current_sla,
+                    'agreed_value': itservice.agreed_sla
+                }
             )
 
         if itservice.backend_trigger_id:
