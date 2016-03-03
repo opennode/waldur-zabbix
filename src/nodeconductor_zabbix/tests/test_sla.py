@@ -1,8 +1,10 @@
 import datetime
+from dateutil.relativedelta import relativedelta
 
 from rest_framework import status, test
 
 from nodeconductor.core.utils import datetime_to_timestamp
+from nodeconductor.monitoring.utils import format_period
 from nodeconductor.structure.tests import factories as structure_factories
 
 from . import factories
@@ -16,19 +18,16 @@ class SlaTest(test.APITransactionTestCase):
         self.itservice = factories.ITServiceFactory()
 
         today = datetime.date.today()
-        period = self.get_period(today)
+        period = format_period(today)
         self.timestamp = datetime_to_timestamp(today)
 
-        next_month = datetime.date.today() + datetime.timedelta(weeks=4)
-        self.next_month = self.get_period(next_month)
+        next_month = datetime.date.today() + relativedelta(months=1)
+        self.next_month = format_period(next_month)
 
         self.history = models.SlaHistory.objects.create(
             itservice=self.itservice, period=period, value=100.0)
         self.events = models.SlaHistoryEvent.objects.create(
             history=self.history, timestamp=self.timestamp, state='U')
-
-    def get_period(self, date):
-        return '%s-%s' % (date.year, date.month)
 
     def test_render_actual_sla(self):
         url = factories.ITServiceFactory.get_url(self.itservice)

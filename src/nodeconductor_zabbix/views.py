@@ -106,10 +106,10 @@ class ITServiceViewSet(BaseZabbixResourceViewSet):
 
     @detail_route()
     def events(self, request, uuid):
-        service = self.get_object()
+        itservice = self.get_object()
         period = get_period(request)
 
-        history = get_object_or_404(models.SlaHistory, itservice=service, period=period)
+        history = get_object_or_404(models.SlaHistory, itservice=itservice, period=period)
         events = list(history.events.all().order_by('-timestamp').values('timestamp', 'state'))
 
         serializer = serializers.SlaHistoryEventSerializer(data=events, many=True)

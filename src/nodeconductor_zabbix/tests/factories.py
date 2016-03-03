@@ -9,7 +9,7 @@ from ..apps import ZabbixConfig
 
 
 class ServiceSettingsFactory(structure_factories.ServiceSettingsFactory):
-    type=ZabbixConfig.service_name
+    type = ZabbixConfig.service_name
 
 
 class ZabbixServiceFactory(factory.DjangoModelFactory):
