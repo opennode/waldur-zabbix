@@ -4,10 +4,11 @@ import json
 from django.db import transaction
 from rest_framework import serializers
 
-from . import models, backend
 from nodeconductor.core.fields import JsonField, MappedChoiceField
 from nodeconductor.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
 from nodeconductor.structure import serializers as structure_serializers, models as structure_models
+
+from . import models, backend
 
 
 class ServiceSerializer(structure_serializers.BaseServiceSerializer):

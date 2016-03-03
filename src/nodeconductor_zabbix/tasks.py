@@ -5,10 +5,11 @@ import logging
 from celery import shared_task
 
 from nodeconductor.core.tasks import save_error_message, transition, retry_if_false
+from nodeconductor.monitoring.models import ResourceItem, ResourceSla, ResourceSlaStateTransition
+from nodeconductor.monitoring.utils import format_period
 
 from .backend import ZabbixBackendError
-from .models import Host, SlaHistory, ITService, Item
-
+from .models import Host, ITService, Item, SlaHistory
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ def update_sla(sla_type):
         period = dt.year
         start_time = int(datetime.datetime.strptime('01/01/%s' % dt.year, '%d/%m/%Y').strftime("%s"))
     else:  # it's a monthly SLA update
-        period = '%s-%s' % (dt.year, dt.month)
+        period = format_period(dt)
         month_start = datetime.datetime.strptime('01/%s/%s' % (dt.month, dt.year), '%d/%m/%Y')
         start_time = int(month_start.strftime("%s"))
 
@@ -119,11 +120,15 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
         entry.value = Decimal(current_sla)
         entry.save()
 
-        # Save SLA as monitoring item if IT service is marked as main for host
+        # Save SLA if IT service is marked as main for host
         if itservice.host and itservice.host.scope and itservice.is_main:
-            itservice.host.scope.monitoring_items.update_or_create(
-                name='SLA-%s' % period,
-                defaults={'value': current_sla},
+            ResourceSla.objects.update_or_create(
+                scope=itservice.host.scope,
+                period=period,
+                defaults={
+                    'value': current_sla,
+                    'agreed_value': itservice.agreed_sla
+                }
             )
 
         if itservice.backend_trigger_id:
@@ -135,6 +140,14 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
                     timestamp=int(event['timestamp']),
                     state=event_state
                 )
+
+                if itservice.host and itservice.host.scope and itservice.is_main:
+                    ResourceSlaStateTransition.objects.get_or_create(
+                        scope=itservice.host.scope,
+                        period=period,
+                        timestamp=int(event['timestamp']),
+                        state=int(event['value']) == 0
+                    )
     except ZabbixBackendError as e:
         logger.warning(
             'Unable to update SLA for IT Service %s (ID: %s). Reason: %s', itservice.name, itservice.backend_id, e)
@@ -196,7 +209,9 @@ def set_itservice_erred(host_uuid, transition_entity=None):
 
 @shared_task(name='nodeconductor.zabbix.update_monitoring_items')
 def update_monitoring_items():
-    """ Regulary update value of monitored resources  """
+    """
+    Regularly update value of monitored resources
+    """
     hosts = Host.objects.filter(object_id__isnull=False, state=Host.States.ONLINE)
     for host in hosts:
         for config in host.MONITORING_ITEMS_CONFIGS:
@@ -212,11 +227,12 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_name, monitoring_i
     value = None
     if Item.objects.filter(template__hosts=host, name=zabbix_item_name).exists():
         value = host.get_backend().get_item_last_value(host.backend_id, key=zabbix_item_name)
-        host.scope.monitoring_items.update_or_create(
+        ResourceItem.objects.update_or_create(
+            scope=host.scope,
             name=monitoring_item_name,
-            defaults={'value': value},
+            defaults={'value': value}
         )
-    logger.info('Successfully updated monitoring item %s for host %s (%s). Currect value: %s.',
+    logger.info('Successfully updated monitoring item %s for host %s (%s). Current value: %s.',
                 monitoring_item_name, host.visible_name, host.uuid.hex, value)
     return value
 
