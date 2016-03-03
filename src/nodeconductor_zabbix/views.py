@@ -1,5 +1,3 @@
-import datetime
-
 from rest_framework import status
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.generics import get_object_or_404
@@ -7,6 +5,7 @@ from rest_framework.response import Response
 
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.utils import datetime_to_timestamp
+from nodeconductor.monitoring.utils import get_period
 from nodeconductor.structure import views as structure_views
 
 from . import models, serializers, filters
@@ -105,25 +104,10 @@ class ITServiceViewSet(BaseZabbixResourceViewSet):
     serializer_class = serializers.ITServiceSerializer
     lookup_field = 'uuid'
 
-    def _get_period(self):
-        period = self.request.query_params.get('period')
-        if period is None:
-            today = datetime.date.today()
-            period = '%s-%s' % (today.year, today.month)
-        return period
-
-    def get_serializer_context(self):
-        """
-        Add period to context.
-        """
-        context = super(ITServiceViewSet, self).get_serializer_context()
-        context['period'] = self._get_period()
-        return context
-
     @detail_route()
     def events(self, request, uuid):
         service = self.get_object()
-        period = self._get_period()
+        period = get_period(request)
 
         history = get_object_or_404(models.SlaHistory, itservice=service, period=period)
         events = list(history.events.all().order_by('-timestamp').values('timestamp', 'state'))
