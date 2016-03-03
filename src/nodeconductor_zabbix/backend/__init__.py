@@ -107,6 +107,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         'type': 1,
         'useip': 1
     }
+
     DEFAULT_DATABASE_PARAMETERS = {
         'host': 'localhost',
         'port': '3306',

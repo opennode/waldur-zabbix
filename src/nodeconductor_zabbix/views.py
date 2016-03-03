@@ -105,21 +105,6 @@ class ITServiceViewSet(BaseZabbixResourceViewSet):
     serializer_class = serializers.ITServiceSerializer
     lookup_field = 'uuid'
 
-    def _get_period(self):
-        period = self.request.query_params.get('period')
-        if period is None:
-            today = datetime.date.today()
-            period = '%s-%s' % (today.year, today.month)
-        return period
-
-    def get_serializer_context(self):
-        """
-        Add period to context.
-        """
-        context = super(ITServiceViewSet, self).get_serializer_context()
-        context['period'] = self._get_period()
-        return context
-
     @detail_route()
     def events(self, request, uuid):
         service = self.get_object()

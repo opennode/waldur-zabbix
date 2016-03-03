@@ -1,3 +1,4 @@
+import datetime
 import json
 
 from django.db import transaction
@@ -195,10 +196,7 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
     # XXX: Should we display sla here?
     def get_actual_sla(self, itservice):
         if 'sla_map' not in self.context:
-            period = self.context.get('period')
-            if period is None:
-                raise AttributeError('ITServiceSerializer has to be initialized with `period` in context')
-            qs = models.SlaHistory.objects.filter(period=period)
+            qs = models.SlaHistory.objects.filter(period=self._get_period())
             if isinstance(self.instance, list):
                 qs = qs.filter(itservice__in=self.instance)
             else:
@@ -206,6 +204,13 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
             self.context['sla_map'] = {q.itservice_id: q.value for q in qs}
 
         return self.context['sla_map'].get(itservice.id)
+
+    def _get_period(self):
+        period = self.context['request'].query_params.get('period')
+        if period is None:
+            today = datetime.date.today()
+            period = '%s-%s' % (today.year, today.month)
+        return period
 
     def validate(self, attrs):
         host = attrs.get('host')
