@@ -5,6 +5,7 @@ from rest_framework import serializers
 
 from nodeconductor.core.fields import JsonField, MappedChoiceField
 from nodeconductor.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
+from nodeconductor.monitoring.utils import get_period
 from nodeconductor.structure import serializers as structure_serializers, models as structure_models
 
 from . import models, backend
@@ -196,10 +197,7 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
     # XXX: Should we display sla here?
     def get_actual_sla(self, itservice):
         if 'sla_map' not in self.context:
-            period = self.context.get('period')
-            if period is None:
-                raise AttributeError('ITServiceSerializer has to be initialized with `period` in context')
-            qs = models.SlaHistory.objects.filter(period=period)
+            qs = models.SlaHistory.objects.filter(period=get_period(self.context['request']))
             if isinstance(self.instance, list):
                 qs = qs.filter(itservice__in=self.instance)
             else:
