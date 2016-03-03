@@ -30,7 +30,6 @@ class SlaTest(test.APITransactionTestCase):
         self.events = models.SlaHistoryEvent.objects.create(
             history=self.history, timestamp=self.timestamp, state='U')
 
-    @unittest.skip('Should be fixed in NC-1192')
     def test_render_actual_sla(self):
         url = factories.ITServiceFactory.get_url(self.itservice)
         response = self.client.get(url)

@@ -196,15 +196,16 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
 
     # XXX: Should we display sla here?
     def get_actual_sla(self, itservice):
-        if 'sla_map' not in self.context:
+        key = 'itservice_sla_map'
+        if key not in self.context:
             qs = models.SlaHistory.objects.filter(period=get_period(self.context['request']))
             if isinstance(self.instance, list):
                 qs = qs.filter(itservice__in=self.instance)
             else:
                 qs = qs.filter(itservice=self.instance)
-            self.context['sla_map'] = {q.itservice_id: q.value for q in qs}
+            self.context[key] = {q.itservice_id: q.value for q in qs}
 
-        return self.context['sla_map'].get(itservice.id)
+        return self.context[key].get(itservice.id)
 
     def validate(self, attrs):
         host = attrs.get('host')
