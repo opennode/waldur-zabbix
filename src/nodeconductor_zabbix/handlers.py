@@ -1,4 +1,9 @@
+import logging
+
 from .models import Host
+
+
+logger = logging.getLogger(__name__)
 
 
 def update_hosts_visible_name_on_scope_name_change(sender, instance, **kwargs):
@@ -11,7 +16,12 @@ def update_hosts_visible_name_on_scope_name_change(sender, instance, **kwargs):
 def delete_hosts_on_scope_deletion(sender, instance, **kwargs):
     for host in Host.objects.filter(scope=instance):
         if host.backend_id:
-            backend = host.get_backend()
-            backend.destroy(host)
+            try:
+                backend = host.get_backend()
+                backend.destroy(host)
+            except Exception as e:
+                logger.error(
+                    'Zabbix host "%s" (UUID: %s) deletion fails with exception %s', host.name, host.uuid.hex, e)
+                host.delete()
         else:
             host.delete()
