@@ -3,6 +3,7 @@ from decimal import Decimal
 import logging
 
 from celery import shared_task
+from django.contrib.contenttypes.models import ContentType
 
 from nodeconductor.core.tasks import save_error_message, transition, retry_if_false
 from nodeconductor.monitoring.models import ResourceItem, ResourceSla, ResourceSlaStateTransition
@@ -228,7 +229,8 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_name, monitoring_i
     if Item.objects.filter(template__hosts=host, name=zabbix_item_name).exists():
         value = host.get_backend().get_item_last_value(host.backend_id, key=zabbix_item_name)
         ResourceItem.objects.update_or_create(
-            scope=host.scope,
+            object_id=host.scope.id,
+            content_type=ContentType.objects.get_for_model(host.scope),
             name=monitoring_item_name,
             defaults={'value': value}
         )

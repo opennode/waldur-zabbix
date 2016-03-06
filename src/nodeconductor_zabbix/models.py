@@ -1,7 +1,5 @@
 from __future__ import unicode_literals
 
-from datetime import timedelta
-
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -47,7 +45,7 @@ class Host(structure_models.Resource):
             'zabbix_item_name': 'application.status',
             'monitoring_item_name': 'application_state',
             'after_creation_update': True,
-            'after_creation_update_terminate_values': ['0'],
+            'after_creation_update_terminate_values': ['1'],
         }
     ]
 
