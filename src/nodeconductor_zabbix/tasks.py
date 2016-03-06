@@ -124,7 +124,8 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
         # Save SLA if IT service is marked as main for host
         if itservice.host and itservice.host.scope and itservice.is_main:
             ResourceSla.objects.update_or_create(
-                scope=itservice.host.scope,
+                object_id=itservice.host.scope.id,
+                content_type=ContentType.objects.get_for_model(itservice.host.scope),
                 period=period,
                 defaults={
                     'value': current_sla,
