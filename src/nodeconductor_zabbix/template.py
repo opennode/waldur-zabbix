@@ -1,9 +1,20 @@
 from django import forms
+from django.contrib.admin.widgets import FilteredSelectMultiple
 from rest_framework import serializers
 
 from nodeconductor.template.forms import TemplateForm
 from nodeconductor.template.serializers import BaseTemplateSerializer
 from nodeconductor_zabbix import models
+
+
+class NestedHyperlinkedRelatedField(serializers.HyperlinkedRelatedField):
+    """ Represents object as {'url': <object_url>} """
+
+    def to_internal_value(self, data):
+        return super(NestedHyperlinkedRelatedField, self).to_internal_value(data.get('url'))
+
+    def to_representation(self, value):
+        return {'url': super(NestedHyperlinkedRelatedField, self).to_representation(value)}
 
 
 class HostProvisionTemplateForm(TemplateForm):
@@ -14,6 +25,11 @@ class HostProvisionTemplateForm(TemplateForm):
     host_group_name = forms.CharField(label='Host group name', required=False)
     scope = forms.CharField(label='Host scope', required=False)
     agreed_sla = forms.FloatField(required=False)
+    templates = forms.ModelMultipleChoiceField(
+        models.Template.objects.all().order_by('name'),
+        label='templates',
+        required=False,
+        widget=FilteredSelectMultiple(verbose_name='Templates', is_stacked=False))
 
     class Meta(TemplateForm.Meta):
         fields = TemplateForm.Meta.fields + ('name', 'visible_name', 'host_group_name')
@@ -29,6 +45,13 @@ class HostProvisionTemplateForm(TemplateForm):
         visible_name = serializers.CharField(required=False)
         host_group_name = serializers.CharField(required=False)
         scope = serializers.CharField(required=False)
+        templates = serializers.ListField(
+            child=NestedHyperlinkedRelatedField(
+                view_name='zabbix-template-detail',
+                lookup_field='uuid',
+                queryset=models.Template.objects.all()),
+            required=False,
+        )
 
     @classmethod
     def get_serializer_class(cls):

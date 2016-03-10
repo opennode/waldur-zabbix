@@ -14,7 +14,7 @@ from requests.packages.urllib3 import exceptions
 from nodeconductor.core.tasks import send_task
 from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.structure import ServiceBackend, ServiceBackendError
-from ..import models
+from . import models
 
 
 logger = logging.getLogger(__name__)

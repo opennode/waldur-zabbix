@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 from django.apps import AppConfig
 from django.db.models import signals
+from django_fsm import signals as fsm_signals
 
 from nodeconductor.structure import SupportedServices, models as structure_models
 
@@ -31,7 +32,7 @@ class ZabbixConfig(AppConfig):
                               index, resource_model.__name__)
             )
 
-            signals.pre_delete.connect(
+            fsm_signals.post_transition.connect(
                 handlers.delete_hosts_on_scope_deletion,
                 sender=resource_model,
                 dispatch_uid='nodeconductor_zabbix.handlers.delete_hosts_on_scope_deletion_%s_%s' % (
