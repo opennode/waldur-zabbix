@@ -235,8 +235,11 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_name, monitoring_i
             name=monitoring_item_name,
             defaults={'value': value}
         )
-    logger.info('Successfully updated monitoring item %s for host %s (%s). Current value: %s.',
-                monitoring_item_name, host.visible_name, host.uuid.hex, value)
+        logger.info('Successfully updated monitoring item %s for host %s (%s). Current value: %s.',
+                    monitoring_item_name, host.visible_name, host.uuid.hex, value)
+    else:
+        logger.info('Host %s (UUID: %s) does not have monitoring item %s.',
+                    host.visible_name, host.uuid.hex, monitoring_item_name)
     return value
 
 
