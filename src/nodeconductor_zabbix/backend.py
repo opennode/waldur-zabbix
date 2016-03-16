@@ -515,7 +515,7 @@ class ZabbixRealBackend(ZabbixBaseBackend):
     def get_sla_range(self, serviceid):
         """
         Execute query to Zabbix DB to get minimum and maximum clock for service's alarm.
-        Returns minimum and maximum datetime.
+        Returns minimum and maximum dates.
         """
         query = 'SELECT min(clock), max(clock) FROM service_alarms WHERE serviceid = %s'
         try:
