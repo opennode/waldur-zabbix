@@ -68,6 +68,7 @@ class SlaPullTest(test.APITransactionTestCase):
         pull_sla(itservice.host.uuid)
 
         # Then
+        mock_backend().get_sla_range.assert_called_once_with(itservice.backend_id)
         month1_beginning = min_dt.replace(day=1)
         month2_beginning = min_dt.replace(day=1) + relativedelta(months=+1)
         mock_task.delay.assert_has_calls([
