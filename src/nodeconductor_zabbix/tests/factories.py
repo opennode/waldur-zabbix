@@ -46,11 +46,28 @@ class ZabbixServiceProjectLinkFactory(factory.DjangoModelFactory):
         return 'http://testserver' + reverse('zabbix-spl-detail', kwargs={'pk': spl.pk})
 
 
+class HostFactory(factory.DjangoModelFactory):
+    class Meta(object):
+        model = models.Host
+
+    service_project_link = factory.SubFactory(ZabbixServiceProjectLinkFactory)
+    name = factory.Sequence(lambda n: 'host%s' % n)
+    backend_id = factory.Sequence(lambda n: 'host-id%s' % n)
+
+    @classmethod
+    def get_url(cls, host=None, action=None):
+        if host is None:
+            host = HostFactory()
+        url = 'http://testserver' + reverse('zabbix-host-detail', kwargs={'uuid': host.uuid})
+        return url if action is None else url + action + '/'
+
+
 class ITServiceFactory(factory.DjangoModelFactory):
     class Meta(object):
         model = models.ITService
 
     service_project_link = factory.SubFactory(ZabbixServiceProjectLinkFactory)
+    host = factory.SubFactory(HostFactory)
     name = factory.Sequence(lambda n: 'itservice%s' % n)
     backend_id = factory.Sequence(lambda n: 'itservice-id%s' % n)
 

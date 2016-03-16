@@ -1,18 +1,19 @@
 import datetime
 from dateutil.relativedelta import relativedelta
-import unittest
+import mock
 
 from rest_framework import status, test
 
 from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.monitoring.utils import format_period
 from nodeconductor.structure.tests import factories as structure_factories
+from nodeconductor_zabbix.tasks import pull_sla
 
 from . import factories
 from .. import models
 
 
-class SlaTest(test.APITransactionTestCase):
+class SlaViewTest(test.APITransactionTestCase):
     def setUp(self):
         self.staff = structure_factories.UserFactory(is_staff=True)
         self.client.force_authenticate(self.staff)
@@ -49,3 +50,34 @@ class SlaTest(test.APITransactionTestCase):
         url = factories.ITServiceFactory.get_events_url(self.itservice)
         response = self.client.get(url, data={'period': self.next_month})
         self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
+
+
+class SlaPullTest(test.APITransactionTestCase):
+
+    @mock.patch('nodeconductor.structure.models.ServiceProjectLink.get_backend')
+    @mock.patch('nodeconductor_zabbix.tasks.update_itservice_sla')
+    def test_task_calls_backend(self, mock_task, mock_backend):
+        # Given
+        itservice = factories.ITServiceFactory(is_main=True, backend_id='VALID')
+
+        min_dt = datetime.date.today().replace(day=10) - relativedelta(months=2)
+        max_dt = datetime.date.today().replace(day=10) - relativedelta(months=1)
+        mock_backend().get_sla_range.return_value = min_dt, max_dt
+
+        # When
+        pull_sla(itservice.host.uuid)
+
+        # Then
+        mock_backend().get_sla_range.assert_called_once_with(itservice.backend_id)
+        month1_beginning = min_dt.replace(day=1)
+        month2_beginning = min_dt.replace(day=1) + relativedelta(months=+1)
+        mock_task.delay.assert_has_calls([
+            mock.call(itservice.pk,
+                      format_period(min_dt),
+                      datetime_to_timestamp(month1_beginning),
+                      datetime_to_timestamp(month2_beginning)),
+            mock.call(itservice.pk,
+                      format_period(max_dt),
+                      datetime_to_timestamp(month2_beginning),
+                      datetime_to_timestamp(max_dt))
+        ])

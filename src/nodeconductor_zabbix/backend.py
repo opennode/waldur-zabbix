@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 import logging
 import sys
 import warnings
@@ -511,6 +511,21 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         except KeyError:
             raise ZabbixBackendError('Status of Zabbix IT service with ID %s is not found. '
                                      'Response is %s', service_id, data)
+
+    def get_sla_range(self, serviceid):
+        """
+        Execute query to Zabbix DB to get minimum and maximum clock for service's alarm.
+        Returns minimum and maximum dates.
+        """
+        query = 'SELECT min(clock), max(clock) FROM service_alarms WHERE serviceid = %s'
+        try:
+            cursor = self._get_db_connection().cursor()
+            cursor.execute(query, [serviceid])
+            min_timestamp, max_timestamp = cursor.fetchone()
+            return date.fromtimestamp(int(min_timestamp)), date.fromtimestamp(int(max_timestamp))
+        except DatabaseError as e:
+            logger.exception('Can not execute query the Zabbix DB.')
+            six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
 
     def get_trigger_events(self, trigger_id, start_time, end_time):
         try:

@@ -3,9 +3,11 @@ from decimal import Decimal
 import logging
 
 from celery import shared_task
+from dateutil.relativedelta import relativedelta
 from django.contrib.contenttypes.models import ContentType
 
 from nodeconductor.core.tasks import save_error_message, transition, retry_if_false
+from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.monitoring.models import ResourceItem, ResourceSla, ResourceSlaStateTransition
 from nodeconductor.monitoring.utils import format_period
 
@@ -78,6 +80,44 @@ def set_host_erred(host_uuid, transition_entity=None):
 @shared_task
 def delete_host(host_uuid):
     Host.objects.get(uuid=host_uuid).delete()
+
+
+@shared_task(name='nodeconductor.zabbix.pull_sla')
+def pull_sla(host_uuid):
+    """
+    Pull SLAs for given Zabbix host for all time of its existence in Zabbix
+    """
+    try:
+        host = Host.objects.get(uuid=host_uuid)
+    except Host.DoesNotExist:
+        logger.warning('Unable to pull SLA for host with UUID %s, because it is gone', host_uuid)
+        return
+
+    try:
+        itservice = ITService.objects.get(host=host, is_main=True)
+    except ITService.DoesNotExist:
+        logger.warning('Unable to pull SLA for host with UUID %s, because IT service does not exist', host_uuid)
+        return
+
+    backend = itservice.get_backend()
+
+    try:
+        # Get dates of first and last service alarm
+        min_dt, max_dt = backend.get_sla_range(itservice.backend_id)
+    except ZabbixBackendError as e:
+        logger.warning('Unable to pull SLA for host with with UUID %s because of database error: %s', host_uuid, e)
+        return
+
+    # Shift date to beginning of the month
+    current_point = min_dt.replace(day=1)
+    while current_point <= max_dt:
+        period = format_period(current_point)
+        start_time = datetime_to_timestamp(current_point)
+        current_point += relativedelta(months=+1)
+        end_time = datetime_to_timestamp(min(max_dt, current_point))
+        update_itservice_sla.delay(itservice.pk, period, start_time, end_time)
+
+    logger.info('Successfully pulled SLA for host with with UUID %s', host_uuid)
 
 
 @shared_task(name='nodeconductor.zabbix.update_sla')
