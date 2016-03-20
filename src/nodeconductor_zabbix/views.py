@@ -119,7 +119,7 @@ class ITServiceViewSet(BaseZabbixResourceViewSet):
 
 
 class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
-    queryset = models.Template.objects.all().select_related('items')
+    queryset = models.Template.objects.all().prefetch_related('items')
     serializer_class = serializers.TemplateSerializer
     lookup_field = 'uuid'
 

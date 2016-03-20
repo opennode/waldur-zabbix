@@ -111,7 +111,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
     visible_name = serializers.CharField(required=False)
     scope = GenericRelatedField(related_models=structure_models.Resource.get_all_models(), required=False)
     templates = NestedTemplateSerializer(
-        queryset=models.Template.objects.all().select_related('items'), many=True, required=False)
+        queryset=models.Template.objects.all().prefetch_related('items'), many=True, required=False)
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.Host
