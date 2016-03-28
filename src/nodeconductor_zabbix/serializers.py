@@ -104,8 +104,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
     service_project_link = serializers.HyperlinkedRelatedField(
         view_name='zabbix-spl-detail',
-        queryset=models.ZabbixServiceProjectLink.objects.all(),
-        write_only=True)
+        queryset=models.ZabbixServiceProjectLink.objects.all())
 
     # visible name could be populated from scope, so we need to mark it as not required
     visible_name = serializers.CharField(required=False)
@@ -168,8 +167,7 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
 
     service_project_link = serializers.HyperlinkedRelatedField(
         view_name='zabbix-spl-detail',
-        queryset=models.ZabbixServiceProjectLink.objects.all(),
-        write_only=True)
+        queryset=models.ZabbixServiceProjectLink.objects.all())
 
     host = serializers.HyperlinkedRelatedField(
         view_name='zabbix-host-detail',
