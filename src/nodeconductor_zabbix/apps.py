@@ -4,8 +4,6 @@ from django.apps import AppConfig
 from django.db.models import signals
 from django_fsm import signals as fsm_signals
 
-from nodeconductor.structure import SupportedServices, models as structure_models
-
 
 class ZabbixConfig(AppConfig):
     name = 'nodeconductor_zabbix'
@@ -13,6 +11,7 @@ class ZabbixConfig(AppConfig):
     service_name = 'Zabbix'
 
     def ready(self):
+        from nodeconductor.structure import SupportedServices, models as structure_models
         # structure
         from .backend import ZabbixBackend
         SupportedServices.register_backend(ZabbixBackend)
