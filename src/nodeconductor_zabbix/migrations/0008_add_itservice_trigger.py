@@ -6,7 +6,7 @@ import uuidfield.fields
 
 import nodeconductor.core.models
 import nodeconductor.core.validators
-import nodeconductor.logging.log
+import nodeconductor.logging.loggers
 
 
 class Migration(migrations.Migration):
