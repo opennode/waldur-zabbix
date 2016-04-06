@@ -266,6 +266,8 @@ def update_monitoring_items():
 @shared_task
 def update_host_scope_monitoring_items(host_uuid, zabbix_item_name, monitoring_item_name):
     host = Host.objects.get(uuid=host_uuid)
+    if host.scope is None:
+        return None
     value = None
     if Item.objects.filter(template__hosts=host, name=zabbix_item_name).exists():
         value = host.get_backend().get_item_last_value(host.backend_id, key=zabbix_item_name)
