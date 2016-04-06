@@ -60,8 +60,9 @@ class ZabbixBaseBackend(ServiceBackend):
             resource.delete()
             return
 
-        # Skip stopping, because host can be deleted directly from state ONLINE
-        resource.schedule_deletion()
+        # XXX: hack. that allows to start deletion from any state.
+        # Should be rewritten during executors implementation.
+        resource.state = models.Host.States.DELETION_SCHEDULED
         resource.save()
 
         if isinstance(resource, models.Host):
