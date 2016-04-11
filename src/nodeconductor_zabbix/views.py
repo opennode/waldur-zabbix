@@ -34,12 +34,12 @@ class BaseZabbixResourceViewSet(structure_views.BaseOnlineResourceViewSet):
 
 class NoHostsException(exceptions.APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = 'There are no ONLINE hosts that matches given query.'
+    default_detail = 'There are no ONLINE hosts that match given query.'
 
 
 class NoItemsException(exceptions.APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = 'There are no items that matches given query.'
+    default_detail = 'There are no items that match given query.'
 
 
 class HostViewSet(BaseZabbixResourceViewSet):
@@ -53,16 +53,17 @@ class HostViewSet(BaseZabbixResourceViewSet):
     def items_history(self, request, uuid):
         """ Get host items historical values.
 
-        Request should specify datetime points and items. There are two ways to define datetime points for historical data.
+        Request should specify datetime points and items.
+        There are two ways to define datetime points for historical data.
 
-        1. Send *?point=<timestamp>* parameter that can list. Response will contain historical data for each given point in the
-           same order.
+        1. Send *?point=<timestamp>* parameter that can list.
+           Response will contain historical data for each given point in the same order.
         2. Send *?start=<timestamp>*, *?end=<timestamp>*, *?points_count=<integer>* parameters.
            Result will contain <points_count> points from <start> to <end>.
 
         Also you should specify one or more name of host template items, for example 'openstack.instance.cpu_util'
 
-        Response is list of datapoint, each of which is dictionary with following fields:
+        Response is list of datapoints, each of which is dictionary with following fields:
          - 'point' - timestamp;
          - 'value' - values are converted from bytes to megabytes, if possible;
          - 'item' - name of host template item.
@@ -96,7 +97,7 @@ class HostViewSet(BaseZabbixResourceViewSet):
 
         Response format: {<item name>: <aggregated value>, ...}
 
-        Endpoint will return status 400 if there are no hosts or items that matches request parameters.
+        Endpoint will return status 400 if there are no hosts or items that match request parameters.
         """
         hosts = self._get_hosts()
         serializer = serializers.ItemsAggregatedValuesSerializer(data=request.query_params, context={'hosts': hosts})

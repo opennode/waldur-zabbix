@@ -266,7 +266,7 @@ class ItemsAggregatedValuesSerializer(serializers.Serializer):
         hosts = self.context['hosts']
         items = models.Item.objects.filter(template__hosts__in=hosts, name__in=self.validated_data['item']).distinct()
         if not items:
-            raise serializers.ValidationError({'item': 'There is no items that matches given query.'})
+            raise serializers.ValidationError({'item': 'There are no items that match given query.'})
         return {
             'start': self.validated_data['start'],
             'end': self.validated_data['end'],

@@ -696,7 +696,6 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             'table': table,
             'hostid': hostid,
             'item_keys': ', '.join(['"%s"' % key for key in item_keys]),
-            'hostid': hostid,
             'start_timestamp': start_timestamp,
             'end_timestamp': end_timestamp,
         }
