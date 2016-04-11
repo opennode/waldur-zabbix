@@ -34,12 +34,12 @@ class BaseZabbixResourceViewSet(structure_views.BaseOnlineResourceViewSet):
 
 class NoHostsException(exceptions.APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = 'There is no ONLINE hosts that matches given query.'
+    default_detail = 'There are no ONLINE hosts that matches given query.'
 
 
 class NoItemsException(exceptions.APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = 'There is no items that matches given query.'
+    default_detail = 'There are no items that matches given query.'
 
 
 class HostViewSet(BaseZabbixResourceViewSet):
