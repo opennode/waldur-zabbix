@@ -113,7 +113,7 @@ class HostViewSet(BaseZabbixResourceViewSet):
                 aggregated_data[key] += value
         return Response(aggregated_data, status=status.HTTP_200_OK)
 
-    def _get_hosts(self, uuid=None):
+    def _get_hosts(self):
         hosts = filter_active(self.filter_queryset(self.get_queryset()))
         if not hosts:
             raise NoHostsException()
