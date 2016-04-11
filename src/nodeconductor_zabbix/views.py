@@ -1,8 +1,11 @@
-from rest_framework import status
+from collections import defaultdict
+
+from rest_framework import status, exceptions
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from nodeconductor.core.exceptions import IncorrectStateException
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.monitoring.utils import get_period
@@ -29,6 +32,16 @@ class BaseZabbixResourceViewSet(structure_views.BaseOnlineResourceViewSet):
         backend.provision(resource)
 
 
+class NoHostsException(exceptions.APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = 'There is no ONLINE hosts that matches given query.'
+
+
+class NoItemsException(exceptions.APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = 'There is no items that matches given query.'
+
+
 class HostViewSet(BaseZabbixResourceViewSet):
     queryset = models.Host.objects.all()
     serializer_class = serializers.HostSerializer
@@ -36,30 +49,88 @@ class HostViewSet(BaseZabbixResourceViewSet):
         filters.HostScopeFilterBackend,
     )
 
+    @detail_route()
+    def items_history(self, request, uuid):
+        """ Get host items historical values.
+
+        Request should specify datetime points and items. There are two ways to define datetime points for historical data.
+
+        1. Send *?point=<timestamp>* parameter that can list. Response will contain historical data for each given point in the
+           same order.
+        2. Send *?start=<timestamp>*, *?end=<timestamp>*, *?points_count=<integer>* parameters.
+           Result will contain <points_count> points from <start> to <end>.
+
+        Also you should specify one or more name of host template items, for example 'openstack.instance.cpu_util'
+
+        Response is list of datapoint, each of which is dictionary with following fields:
+         - 'point' - timestamp;
+         - 'value' - values are converted from bytes to megabytes, if possible;
+         - 'item' - name of host template item.
+        """
+        host = self.get_object()
+        if host.state != models.Host.States.ONLINE:
+            raise IncorrectStateException('Host has to be ONLINE to get items history.')
+        stats = self._get_stats(request, [host])
+        return Response(stats, status=status.HTTP_200_OK)
+
     @list_route()
     def aggregated_items_history(self, request):
+        """ Get sum of hosts historical values.
+
+        Request should specify host filtering parameters, datetime points, and items.
+        Host filtering parameters are the same as for */api/zabbix-hosts/* endpoint.
+        Input/output format is the same as for **/api/zabbix-hosts/<host_uuid>/items_history/** endpoint.
+        """
         stats = self._get_stats(request, self._get_hosts())
         return Response(stats, status=status.HTTP_200_OK)
 
-    @detail_route()
-    def items_history(self, request, uuid):
-        stats = self._get_stats(request, self._get_hosts(uuid))
-        return Response(stats, status=status.HTTP_200_OK)
+    @list_route()
+    def items_aggregated_values(self, request):
+        """ Get sum of aggregated hosts values.
+
+        Additional parameters:
+         - ?start - start of aggregation period as timestamp. Default: 1 hour ago.
+         - ?end - end of aggregation period as timestamp. Default: now.
+         - ?method - aggregation method. Default: MAX. Choices: MIN, MAX.
+         - ?items - item name. Can be list. Required.
+
+        Response format: {<item name>: <aggregated value>, ...}
+
+        Endpoint will return status 400 if there are no hosts or items that matches request parameters.
+        """
+        hosts = self._get_hosts()
+        serializer = serializers.ItemsAggregatedValuesSerializer(data=request.query_params, context={'hosts': hosts})
+        serializer.is_valid(raise_exception=True)
+        filter_data = serializer.get_filter_data()
+
+        aggregated_data = defaultdict(lambda: 0)
+        for host in hosts:
+            backend = host.get_backend()
+            host_aggregated_values = backend.get_items_aggregated_values(
+                host, filter_data['items'], filter_data['start'], filter_data['end'], filter_data['method'])
+            for key, value in host_aggregated_values.items():
+                aggregated_data[key] += value
+        return Response(aggregated_data, status=status.HTTP_200_OK)
 
     def _get_hosts(self, uuid=None):
-        hosts = filter_active(self.get_queryset())
-        if uuid:
-            hosts = hosts.filter(uuid=uuid)
+        hosts = filter_active(self.filter_queryset(self.get_queryset()))
+        if not hosts:
+            raise NoHostsException()
         return hosts
+
+    def _get_items(self, request, hosts):
+        items = request.query_params.getlist('item')
+        items = models.Item.objects.filter(template__hosts__in=hosts, name__in=items).distinct()
+        if not items:
+            raise NoItemsException()
+        return items
 
     def _get_stats(self, request, hosts):
         """
         If item list contains several elements, result is ordered by item
         (in the same order as it has been provided in request) and then by time.
         """
-        items = request.query_params.getlist('item')
-        items = models.Item.objects.filter(template__hosts__in=hosts, name__in=items).distinct()
-
+        items = self._get_items(request, hosts)
         points = self._get_points(request)
 
         stats = []
