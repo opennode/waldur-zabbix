@@ -35,16 +35,6 @@ class ZabbixBackendError(ServiceBackendError):
     pass
 
 
-class ZabbixBackend(object):
-
-    def __init__(self, settings, *args, **kwargs):
-        backend_class = ZabbixDummyBackend if settings.dummy else ZabbixRealBackend
-        self.backend = backend_class(settings, *args, **kwargs)
-
-    def __getattr__(self, name):
-        return getattr(self.backend, name)
-
-
 class ZabbixBaseBackend(ServiceBackend):
 
     def provision(self, resource):
@@ -95,8 +85,7 @@ class QuietSession(requests.Session):
             return super(QuietSession, self).request(*args, **kwargs)
 
 
-class ZabbixRealBackend(ZabbixBaseBackend):
-    """ Zabbix backend methods """
+class ZabbixBackend(ZabbixBaseBackend):
 
     DEFAULT_HOST_GROUP_NAME = 'nodeconductor'
     DEFAULT_TEMPLATES_NAMES = ('NodeConductor',)
@@ -731,8 +720,3 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         except DatabaseError as e:
             logger.exception('Can not execute query the Zabbix DB.')
             six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
-
-
-# TODO: remove dummy backend
-class ZabbixDummyBackend(ZabbixBaseBackend):
-    pass
