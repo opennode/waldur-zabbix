@@ -519,14 +519,9 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         Returns minimum and maximum dates.
         """
         query = 'SELECT min(clock), max(clock) FROM service_alarms WHERE serviceid = %s'
-        try:
-            cursor = self._get_db_connection().cursor()
-            cursor.execute(query, [serviceid])
-            min_timestamp, max_timestamp = cursor.fetchone()
-            return date.fromtimestamp(int(min_timestamp)), date.fromtimestamp(int(max_timestamp))
-        except DatabaseError as e:
-            logger.exception('Can not execute query the Zabbix DB.')
-            six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
+        cursor = self._execute_query(query, [serviceid])
+        min_timestamp, max_timestamp = cursor.fetchone()
+        return date.fromtimestamp(int(min_timestamp)), date.fromtimestamp(int(max_timestamp))
 
     def get_trigger_events(self, trigger_id, start_time, end_time):
         try:
@@ -606,6 +601,52 @@ class ZabbixRealBackend(ZabbixBaseBackend):
             values.append(value)
         return values[::-1]
 
+    def get_items_aggregated_values(self, host, items, start_timestamp, end_timestamp, method='MAX'):
+        """
+        Get aggregate values for host items.
+
+        Output format:
+            {
+                <item1.name>: <aggregated value>,
+                <item2.name>: <aggregated value>,
+                ...
+            }
+        """
+        int_items = [item for item in items if item.value_type == models.Item.ValueTypes.INTEGER]
+        float_items = [item for item in items if item.value_type == models.Item.ValueTypes.FLOAT]
+
+        # Get aggregated data from DB
+        db_data = tuple()
+        default_kwargs = {
+            'hostid': host.backend_id,
+            'start_timestamp': start_timestamp,
+            'end_timestamp': end_timestamp,
+            'method': method,
+        }
+        # XXX: We need to get values from table "trends" if end_timestamp < item.history.
+        if int_items:
+            cursor = self._get_aggregated_values(
+                item_keys=[item.name for item in int_items],
+                table='history',
+                **default_kwargs
+            )
+            db_data += cursor.fetchall()
+        if float_items:
+            cursor = self._get_aggregated_values(
+                item_keys=[item.name for item in float_items],
+                table='history_uint',
+                **default_kwargs
+            )
+            db_data += cursor.fetchall()
+
+        # Prepare data - convert B to MB if needed
+        items_keys = {item.name: item for item in items}
+        aggregated_values = {}
+        for key, value in db_data:
+            item = items_keys[key]
+            aggregated_values[key] = self.b2mb(value) if item.is_byte() else value
+        return aggregated_values
+
     def b2mb(self, value):
         return value / 1024 / 1024
 
@@ -633,13 +674,34 @@ class ZabbixRealBackend(ZabbixBaseBackend):
         }
         query = query % parameters
 
-        try:
-            cursor = self._get_db_connection().cursor()
-            cursor.execute(query)
-            return cursor
-        except DatabaseError as e:
-            logger.exception('Can not execute query the Zabbix DB.')
-            six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
+        return self._execute_query(query)
+
+    def _get_aggregated_values(self, hostid, item_keys, start_timestamp, end_timestamp, table, method='MAX'):
+        """
+        Execute query to zabbix DB to get item aggregated historical value.
+        """
+        # XXX: This query is really slow with a lot of item_keys, need to speed up it with index.
+        query = (
+            'SELECT items.key_, %(method)s(value) '
+            'FROM hosts, items, %(table)s history '
+            'WHERE items.hostid = %(hostid)s '
+            'AND items.key_ IN (%(item_keys)s) '
+            'AND clock >= %(start_timestamp)s '
+            'AND clock <= %(end_timestamp)s '
+            'GROUP BY items.key_'
+        )
+
+        parameters = {
+            'method': method,
+            'table': table,
+            'hostid': hostid,
+            'item_keys': ', '.join(['"%s"' % key for key in item_keys]),
+            'start_timestamp': start_timestamp,
+            'end_timestamp': end_timestamp,
+        }
+
+        query = query % parameters
+        return self._execute_query(query)
 
     def _get_db_connection(self):
         host = self.database_parameters['host']
@@ -659,6 +721,16 @@ class ZabbixRealBackend(ZabbixBaseBackend):
                 'PASSWORD': password
             }
         return connections[key]
+
+    def _execute_query(self, query, *args, **kwargs):
+        logger.debug('Executing query %s to Zabbix' % query)
+        try:
+            cursor = self._get_db_connection().cursor()
+            cursor.execute(query, *args, **kwargs)
+            return cursor
+        except DatabaseError as e:
+            logger.exception('Can not execute query the Zabbix DB.')
+            six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
 
 
 # TODO: remove dummy backend
