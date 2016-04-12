@@ -89,26 +89,27 @@ class HostViewSet(BaseZabbixResourceViewSet):
     def items_aggregated_values(self, request):
         """ Get sum of aggregated hosts values.
 
-        Additional parameters:
+        Request parameters:
          - ?start - start of aggregation period as timestamp. Default: 1 hour ago.
          - ?end - end of aggregation period as timestamp. Default: now.
          - ?method - aggregation method. Default: MAX. Choices: MIN, MAX.
-         - ?items - item name. Can be list. Required.
+         - ?item - item name. Can be list. Required.
 
         Response format: {<item name>: <aggregated value>, ...}
 
         Endpoint will return status 400 if there are no hosts or items that match request parameters.
         """
         hosts = self._get_hosts()
-        serializer = serializers.ItemsAggregatedValuesSerializer(data=request.query_params, context={'hosts': hosts})
+        serializer = serializers.ItemsAggregatedValuesSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
-        filter_data = serializer.get_filter_data()
+        filter_data = serializer.validated_data
+        items = self._get_items(request, hosts)
 
         aggregated_data = defaultdict(lambda: 0)
         for host in hosts:
             backend = host.get_backend()
             host_aggregated_values = backend.get_items_aggregated_values(
-                host, filter_data['items'], filter_data['start'], filter_data['end'], filter_data['method'])
+                host, items, filter_data['start'], filter_data['end'], filter_data['method'])
             for key, value in host_aggregated_values.items():
                 aggregated_data[key] += value
         return Response(aggregated_data, status=status.HTTP_200_OK)

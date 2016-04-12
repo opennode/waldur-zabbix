@@ -241,18 +241,11 @@ class SlaHistoryEventSerializer(serializers.Serializer):
     state = serializers.CharField()
 
 
-class QueryParamsListField(serializers.ListField):
-    def get_value(self, query_params):
-        return query_params.getlist(self.field_name)
-
-
-# Should be initialized with 'hosts' in context.
 class ItemsAggregatedValuesSerializer(serializers.Serializer):
     """ Validate input parameters for items_aggregated_values action. """
     start = serializers.IntegerField(default=lambda: datetime_to_timestamp(timezone.now() - timedelta(hours=1)))
     end = serializers.IntegerField(default=lambda: datetime_to_timestamp(timezone.now()))
     method = serializers.ChoiceField(default='MAX', choices=('MIN', 'MAX'))
-    item = QueryParamsListField(child=serializers.CharField())
 
     def validate(self, data):
         """
@@ -261,15 +254,3 @@ class ItemsAggregatedValuesSerializer(serializers.Serializer):
         if 'start' in data and 'end' in data and data['start'] >= data['end']:
             raise serializers.ValidationError("End must occur after start")
         return data
-
-    def get_filter_data(self):
-        hosts = self.context['hosts']
-        items = models.Item.objects.filter(template__hosts__in=hosts, name__in=self.validated_data['item']).distinct()
-        if not items:
-            raise serializers.ValidationError({'item': 'There are no items that match given query.'})
-        return {
-            'start': self.validated_data['start'],
-            'end': self.validated_data['end'],
-            'method': self.validated_data['method'],
-            'items': items,
-        }
