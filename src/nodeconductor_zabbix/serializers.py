@@ -37,21 +37,21 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
 
     def get_fields(self):
         fields = super(ServiceSerializer, self).get_fields()
-        fields['host_group_name'].initial = backend.ZabbixRealBackend.DEFAULT_HOST_GROUP_NAME
+        fields['host_group_name'].initial = backend.ZabbixBackend.DEFAULT_HOST_GROUP_NAME
         fields['templates_names'] = JsonField(
-            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_TEMPLATES_NAMES),
+            initial=json.dumps(backend.ZabbixBackend.DEFAULT_TEMPLATES_NAMES),
             help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['templates_names'],
             required=True,
             write_only=True,
         )
         fields['interface_parameters'] = JsonField(
-            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_INTERFACE_PARAMETERS),
+            initial=json.dumps(backend.ZabbixBackend.DEFAULT_INTERFACE_PARAMETERS),
             help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['interface_parameters'],
             required=True,
             write_only=True,
         )
         fields['database_parameters'] = JsonField(
-            initial=json.dumps(backend.ZabbixRealBackend.DEFAULT_DATABASE_PARAMETERS),
+            initial=json.dumps(backend.ZabbixBackend.DEFAULT_DATABASE_PARAMETERS),
             help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['database_parameters'],
             required=True,
             write_only=True,
@@ -150,7 +150,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
             # get default templates from service settings if they are not defined
             if templates is None:
                 templates_names = host.service_project_link.service.settings.options.get(
-                    'templates_names', backend.ZabbixRealBackend.DEFAULT_TEMPLATES_NAMES)
+                    'templates_names', backend.ZabbixBackend.DEFAULT_TEMPLATES_NAMES)
                 templates = models.Template.objects.filter(
                     settings=host.service_project_link.service.settings,
                     name__in=templates_names
