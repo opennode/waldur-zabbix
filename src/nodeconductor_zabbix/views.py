@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+from django.utils import six
 from rest_framework import status, exceptions
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.generics import get_object_or_404
@@ -7,11 +8,12 @@ from rest_framework.response import Response
 
 from nodeconductor.core.exceptions import IncorrectStateException
 from nodeconductor.core.serializers import HistorySerializer
+from nodeconductor.core.views import StateExecutorViewSet
 from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.monitoring.utils import get_period
 from nodeconductor.structure import views as structure_views
 
-from . import models, serializers, filters
+from . import models, serializers, filters, executors
 from .managers import filter_active
 
 
@@ -42,12 +44,18 @@ class NoItemsException(exceptions.APIException):
     default_detail = 'There are no items that match given query.'
 
 
-class HostViewSet(BaseZabbixResourceViewSet):
+class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
+                                     structure_views.ResourceViewMixin,
+                                     StateExecutorViewSet)):
+    """ Representation of Zabbix hosts and related actions. """
     queryset = models.Host.objects.all()
     serializer_class = serializers.HostSerializer
     filter_backends = BaseZabbixResourceViewSet.filter_backends + (
         filters.HostScopeFilterBackend,
     )
+    create_executor = executors.HostCreateExecutor
+    update_executor = executors.HostUpdateExecutor
+    delete_executor = executors.HostDeleteExecutor
 
     @detail_route()
     def items_history(self, request, uuid):
@@ -172,10 +180,15 @@ class HostViewSet(BaseZabbixResourceViewSet):
         return map(sum_without_none, zip(*rows))
 
 
-class ITServiceViewSet(BaseZabbixResourceViewSet):
+class ITServiceViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
+                                          structure_views.ResourceViewMixin,
+                                          StateExecutorViewSet)):
     queryset = models.ITService.objects.all().select_related('trigger')
     serializer_class = serializers.ITServiceSerializer
     lookup_field = 'uuid'
+    create_executor = executors.ITServiceCreateExecutor
+    delete_executor = executors.ITServiceDeleteExecutor
+    # TODO: add update operation
 
     @detail_route()
     def events(self, request, uuid):

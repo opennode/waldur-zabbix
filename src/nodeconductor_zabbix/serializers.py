@@ -130,9 +130,6 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
             attrs['visible_name'] = models.Host.get_visible_name_from_scope(attrs['scope'])
         if not attrs.get('visible_name') and self.instance is None:
             raise serializers.ValidationError('Visible name or scope should be defined.')
-        # forbid templates update
-        if self.instance is not None and 'templates' in attrs:
-            raise serializers.ValidationError('Its impossible to update host templates')
         # model validation
         if self.instance is not None:
             for name, value in attrs.items():
@@ -157,6 +154,17 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
                 )
             for template in templates:
                 host.templates.add(template)
+
+        return host
+
+    def update(self, host, validated_data):
+        templates = validated_data.pop('templates', None)
+        with transaction.atomic():
+            host = super(HostSerializer, self).update(host, validated_data)
+            if templates is not None:
+                host.templates.clear()
+                for template in templates:
+                    host.templates.add(template)
 
         return host
 

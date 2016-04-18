@@ -6,7 +6,7 @@ from celery import shared_task
 from dateutil.relativedelta import relativedelta
 from django.contrib.contenttypes.models import ContentType
 
-from nodeconductor.core.tasks import save_error_message, transition, retry_if_false
+from nodeconductor.core.tasks import retry_if_false
 from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.monitoring.models import ResourceItem, ResourceSla, ResourceSlaStateTransition
 from nodeconductor.monitoring.utils import format_period
@@ -15,71 +15,6 @@ from .backend import ZabbixBackendError
 from .models import Host, ITService, Item, SlaHistory
 
 logger = logging.getLogger(__name__)
-
-
-@shared_task(name='nodeconductor.zabbix.provision_host')
-def provision_host(host_uuid):
-    begin_host_provision.apply_async(
-        args=(host_uuid,),
-        link=set_host_online.si(host_uuid),
-        link_error=set_host_erred.si(host_uuid)
-    )
-
-
-@shared_task(name='nodeconductor.zabbix.destroy_host')
-def destroy_host(host_uuid):
-    begin_host_destroy.apply_async(
-        args=(host_uuid,),
-        link=delete_host.si(host_uuid),
-        link_error=set_host_erred.si(host_uuid),
-    )
-
-
-@shared_task(name='nodeconductor.zabbix.update_visible_name')
-def update_visible_name(host_uuid):
-    host = Host.objects.get(uuid=host_uuid)
-    backend = host.get_backend()
-    backend.update_host_visible_name(host)
-
-
-@shared_task
-@transition(Host, 'begin_provisioning')
-@save_error_message
-def begin_host_provision(host_uuid, transition_entity=None):
-    host = transition_entity
-    backend = host.get_backend()
-    backend.provision_host(host)
-
-
-@shared_task
-@transition(Host, 'begin_deleting')
-@save_error_message
-def begin_host_destroy(host_uuid, transition_entity=None):
-    host = transition_entity
-    backend = host.get_backend()
-    backend.destroy_host(host)
-
-
-@shared_task
-@transition(Host, 'set_online')
-def set_host_online(host_uuid, transition_entity=None):
-    host = transition_entity
-    if host.scope:
-        for config in Host.MONITORING_ITEMS_CONFIGS:
-            after_creation_monitoring_item_update.delay(host_uuid, config)
-            logger.info('After creation monitoring items update process was started for host %s (%s)',
-                        host.visible_name, host.uuid.hex)
-
-
-@shared_task
-@transition(Host, 'set_erred')
-def set_host_erred(host_uuid, transition_entity=None):
-    pass
-
-
-@shared_task
-def delete_host(host_uuid):
-    Host.objects.get(uuid=host_uuid).delete()
 
 
 @shared_task(name='nodeconductor.zabbix.pull_sla')
@@ -194,59 +129,6 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
         logger.warning(
             'Unable to update SLA for IT Service %s (ID: %s). Reason: %s', itservice.name, itservice.backend_id, e)
     logger.info('Successfully updated SLA for IT Service %s (ID: %s)', itservice.name, itservice.backend_id)
-
-
-@shared_task(name='nodeconductor.zabbix.provision_itservice')
-def provision_itservice(itservice_uuid):
-    begin_itservice_provision.apply_async(
-        args=(itservice_uuid,),
-        link=set_itservice_online.si(itservice_uuid),
-        link_error=set_itservice_erred.si(itservice_uuid)
-    )
-
-
-@shared_task
-@transition(ITService, 'begin_provisioning')
-@save_error_message
-def begin_itservice_provision(itservice_uuid, transition_entity=None):
-    itservice = transition_entity
-    backend = itservice.get_backend()
-    backend.provision_itservice(itservice)
-
-
-@shared_task(name='nodeconductor.zabbix.destroy_itservice')
-def destroy_itservice(itservice_uuid):
-    begin_itservice_destroy.apply_async(
-        args=(itservice_uuid,),
-        link=delete_itservice.si(itservice_uuid),
-        link_error=set_itservice_erred.si(itservice_uuid),
-    )
-
-
-@shared_task
-@transition(ITService, 'begin_deleting')
-@save_error_message
-def begin_itservice_destroy(itservice_uuid, transition_entity=None):
-    itservice = transition_entity
-    backend = itservice.get_backend()
-    backend.delete_service(itservice.backend_id)
-
-
-@shared_task
-def delete_itservice(itservice_uuid):
-    ITService.objects.get(uuid=itservice_uuid).delete()
-
-
-@shared_task
-@transition(ITService, 'set_online')
-def set_itservice_online(host_uuid, transition_entity=None):
-    pass
-
-
-@shared_task
-@transition(ITService, 'set_erred')
-def set_itservice_erred(host_uuid, transition_entity=None):
-    pass
 
 
 @shared_task(name='nodeconductor.zabbix.update_monitoring_items')

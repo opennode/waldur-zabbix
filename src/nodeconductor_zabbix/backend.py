@@ -1,8 +1,8 @@
 from datetime import date, timedelta
+from decimal import Decimal
 import logging
 import sys
 import warnings
-from decimal import Decimal
 
 from django.db import connections, DatabaseError
 from django.utils import six, timezone
@@ -11,9 +11,9 @@ import requests
 from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
 
-from nodeconductor.core.tasks import send_task
 from nodeconductor.core.utils import datetime_to_timestamp
-from nodeconductor.structure import ServiceBackend, ServiceBackendError
+from nodeconductor.structure import ServiceBackend, ServiceBackendError, log_backend_action
+
 from . import models
 
 
@@ -35,41 +35,6 @@ class ZabbixBackendError(ServiceBackendError):
     pass
 
 
-class ZabbixBaseBackend(ServiceBackend):
-
-    def provision(self, resource):
-        if isinstance(resource, models.Host):
-            send_task('zabbix', 'provision_host')(resource.uuid.hex)
-        elif isinstance(resource, models.ITService):
-            send_task('zabbix', 'provision_itservice')(resource.uuid.hex)
-        else:
-            raise NotImplementedError
-
-    def destroy(self, resource, force=False):
-        if force:
-            resource.delete()
-            return
-
-        # XXX: hack. that allows to start deletion from any state.
-        # Should be rewritten during executors implementation.
-        resource.state = models.Host.States.DELETION_SCHEDULED
-        resource.save()
-
-        if isinstance(resource, models.Host):
-            send_task('zabbix', 'destroy_host')(resource.uuid.hex)
-        elif isinstance(resource, models.ITService):
-            send_task('zabbix', 'destroy_itservice')(resource.uuid.hex)
-        else:
-            raise NotImplementedError
-
-    def update_visible_name(self, host):
-        new_visible_name = host.get_visible_name_from_scope(host.scope)
-        if new_visible_name != host.visible_name:
-            send_task('zabbix', 'update_visible_name')(
-                host.uuid.hex,
-            )
-
-
 class QuietSession(requests.Session):
     """Session class that suppresses warning about unsafe TLS sessions and clogging the logs.
     Inspired by: https://github.com/kennethreitz/requests/issues/2214#issuecomment-110366218
@@ -85,7 +50,7 @@ class QuietSession(requests.Session):
             return super(QuietSession, self).request(*args, **kwargs)
 
 
-class ZabbixBackend(ZabbixBaseBackend):
+class ZabbixBackend(ServiceBackend):
 
     DEFAULT_HOST_GROUP_NAME = 'nodeconductor'
     DEFAULT_TEMPLATES_NAMES = ('NodeConductor',)
@@ -144,20 +109,24 @@ class ZabbixBackend(ZabbixBaseBackend):
         if not self.interface_parameters:
             raise ZabbixBackendError('Interface parameters should not be empty.')
 
-    def provision_host(self, host):
+    @log_backend_action()
+    def create_host(self, host):
         interface_parameters = host.interface_parameters or self.interface_parameters
         host_group_name = host.host_group_name or self.host_group_name
 
         templates_ids = [t.backend_id for t in host.templates.all()]
         group_id, _ = self._get_or_create_group_id(host_group_name)
 
-        zabbix_host_id, created = self._get_or_create_host_id(
-            host_name=host.name,
-            visible_name=host.visible_name,
-            group_id=group_id,
-            templates_ids=templates_ids,
-            interface_parameters=interface_parameters,
-        )
+        try:
+            zabbix_host_id, created = self._get_or_create_host_id(
+                host_name=host.name,
+                visible_name=host.visible_name,
+                group_id=group_id,
+                templates_ids=templates_ids,
+                interface_parameters=interface_parameters,
+            )
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
 
         if not created:
             logger.warning('Host with name "%s" already exists', host.name)
@@ -167,33 +136,61 @@ class ZabbixBackend(ZabbixBaseBackend):
         host.backend_id = zabbix_host_id
         host.save()
 
-    def provision_itservice(self, itservice):
-        service_name = itservice.name or self._get_service_name(itservice.host.scope.backend_id)
+    @log_backend_action()
+    def update_host(self, host):
+        try:
+            group_id, _ = self._get_or_create_group_id(host.host_group_name)
+            self.api.host.update({
+                'hostid': host.backend_id,
+                'host': host.name,
+                'name': host.visible_name,
+                'group_id': group_id,
+                'interfaces': [host.interface_parameters],
+                'templates': [{'templateid': t.backend_id} for t in host.templates.all()]
+            })
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
 
-        trigger_id = None
-        if itservice.trigger and itservice.host:
-            trigger_id = self._get_trigger_id(itservice.host.backend_id, itservice.trigger.name)
-
-        service_id = self.create_itservice(service_name,
-                                           itservice.algorithm,
-                                           itservice.sort_order,
-                                           itservice.agreed_sla,
-                                           trigger_id)
-
-        itservice.backend_id = service_id
-        itservice.save(update_fields=['backend_id'])
-
-    def destroy_host(self, host):
+    @log_backend_action()
+    def delete_host(self, host):
         try:
             self.api.host.delete(host.backend_id)
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
-            raise ZabbixBackendError('Cannot delete host with name "%s". Exception: %s' % (host.name, e))
+            six.reraise(ZabbixBackendError, e)
 
-    def update_host_visible_name(self, host):
-        """ Update visible name based on host scope """
-        host.visible_name = host.get_visible_name_from_scope(host.scope)
-        self._update_host(host.backend_id, name=host.visible_name)
-        host.save()
+    @log_backend_action()
+    def create_itservice(self, itservice):
+        name = itservice.name or self._get_service_name(itservice.host.scope.backend_id)
+
+        try:
+            creation_kwargs = {
+                'name': name,
+                'algorithm': itservice.algorithm,
+                'showsla': self._get_showsla(itservice.algorithm),
+                'sortorder': itservice.sort_order,
+                'goodsla': six.text_type(itservice.agreed_sla),
+                'triggerid': None,
+            }
+            if itservice.trigger and itservice.host:
+                creation_kwargs['triggerid'] = self._get_trigger_id(itservice.host.backend_id, itservice.trigger.name)
+
+            data = self.api.service.create(creation_kwargs)
+            service_id = data['serviceids'][0]
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
+        except (IndexError, KeyError) as e:
+            raise ZabbixBackendError('ITService create request returned unexpected response: %s', data)
+        else:
+            itservice.backend_id = service_id
+            itservice.name = name
+            itservice.save(update_fields=['backend_id'])
+
+    @log_backend_action()
+    def delete_itservice(self, itservice):
+        try:
+            self.api.service.delete(itservice.backend_id)
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
 
     def pull_templates(self):
         """ Update existing NodeConductor templates and their items """
@@ -372,14 +369,6 @@ class ZabbixBackend(ZabbixBaseBackend):
     def _map_keys(self, items, key):
         return list(set(item[key] for item in items))
 
-    def _update_host(self, host_id, **kwargs):
-        try:
-            kwargs.update({'hostid': host_id})
-            self.api.host.update(kwargs)
-        except pyzabbix.ZabbixAPIException as e:
-            raise ZabbixBackendError('Cannot update host with id "%s". Update parameters: %s. Exception: %s' % (
-                                     host_id, kwargs, e))
-
     def _get_or_create_group_id(self, group_name):
         try:
             exists = self.api.hostgroup.exists(name=group_name)
@@ -416,26 +405,6 @@ class ZabbixBackend(ZabbixBaseBackend):
             raise ZabbixBackendError(
                 'Cannot get or create host with parameters: %s. Exception: %s' % (host_parameters, str(e)))
 
-    def create_itservice(self, name, algorithm, sort_order, agreed_sla, trigger_id=None):
-        """
-        Create Zabbix IT service with given parameters.
-        """
-
-        try:
-            data = self.api.service.create({
-                'algorithm': algorithm,
-                'name': name,
-                'showsla': self._get_showsla(algorithm),
-                'sortorder': sort_order,
-                'goodsla': six.text_type(agreed_sla),
-                'triggerid': trigger_id
-            })
-            logger.debug('Zabbix IT service with name %s has been created', name)
-            return data['serviceids'][0]
-        except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
-            message = 'Cannot create Zabbix IT service with name: %s. Exception: %s'
-            raise ZabbixBackendError(message % (name, str(e)))
-
     def _get_showsla(self, algorithm):
         if algorithm == models.ITService.Algorithm.ANY:
             return 1
@@ -459,19 +428,6 @@ class ZabbixBackend(ZabbixBaseBackend):
             return data[0]['triggerid']
         except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
             logger.exception('No trigger for host %s and description %s', host_id, description)
-            six.reraise(ZabbixBackendError, e)
-
-    def delete_service(self, serviceid):
-        return self.delete_services([serviceid])
-
-    def delete_services(self, service_ids):
-        """
-        Batch delete Zabbix IT services
-        """
-        try:
-            self.api.service.delete(*service_ids)
-        except (pyzabbix.ZabbixAPIException, RequestException) as e:
-            logger.exception('Can not delete Zabbix service with ID %s.', service_ids)
             six.reraise(ZabbixBackendError, e)
 
     def get_sla(self, service_id, start_time, end_time):
