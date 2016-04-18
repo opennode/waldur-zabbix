@@ -30,7 +30,7 @@ class ZabbixServiceProjectLink(structure_models.ServiceProjectLink):
 
 
 @python_2_unicode_compatible
-class Host(structure_models.Resource):
+class Host(structure_models.NewResource):
     VISIBLE_NAME_MAX_LENGTH = 64
 
     # list of items that are added as monitoring items to hosts scope.
@@ -139,7 +139,7 @@ class Trigger(structure_models.ServiceProperty):
 Trigger._meta.get_field('name').max_length = 255
 
 
-class ITService(structure_models.Resource):
+class ITService(structure_models.NewResource):
     class Algorithm:
         SKIP = 0
         ANY = 1

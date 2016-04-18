@@ -3,7 +3,7 @@ from django.utils.translation import ungettext
 
 from nodeconductor.core.tasks import send_task
 from nodeconductor.structure import admin as structure_admin
-from .models import ZabbixServiceProjectLink, ZabbixService, Host, SlaHistory, SlaHistoryEvent
+from .models import ZabbixServiceProjectLink, ZabbixService, Host, SlaHistory, SlaHistoryEvent, ITService
 
 
 class SlaHistoryEventsInline(admin.TabularInline):
@@ -41,7 +41,12 @@ class HostAdmin(structure_admin.ResourceAdmin):
     pull_sla.short_description = "Pull SLAs for given Zabbix hosts"
 
 
+class ITServiceAdmin(structure_admin.ResourceAdmin):
+    pass
+
+
 admin.site.register(Host, HostAdmin)
+admin.site.register(ITService, ITServiceAdmin)
 admin.site.register(ZabbixService, structure_admin.ServiceAdmin)
 admin.site.register(ZabbixServiceProjectLink, structure_admin.ServiceProjectLinkAdmin)
 admin.site.register(SlaHistory, SlaHistoryAdmin)
