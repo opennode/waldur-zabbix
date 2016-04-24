@@ -16,7 +16,7 @@ tests_require = [
 ]
 
 install_requires = [
-    'nodeconductor>0.93.0',
+    'nodeconductor>0.95.0',
     'pyzabbix>=0.7.2',
 ]
 
@@ -46,7 +46,7 @@ setup(
     author='OpenNode Team',
     author_email='info@opennodecloud.com',
     url='http://nodeconductor.com',
-    description='NodeConductor Zabbix adds Zabbix monitoring support to NodeConductor',
+    description='NodeConductor Zabbix adds support for Zabbix monitoring server management',
     long_description=open('README.rst').read(),
     package_dir={'': 'src'},
     packages=find_packages('src', exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),

@@ -53,7 +53,7 @@ class QuietSession(requests.Session):
 class ZabbixBackend(ServiceBackend):
 
     DEFAULT_HOST_GROUP_NAME = 'nodeconductor'
-    DEFAULT_TEMPLATES_NAMES = ('NodeConductor',)
+    DEFAULT_TEMPLATES_NAMES = []
     DEFAULT_INTERFACE_PARAMETERS = {
         'dns': '',
         'ip': '0.0.0.0',
@@ -371,9 +371,8 @@ class ZabbixBackend(ServiceBackend):
 
     def _get_or_create_group_id(self, group_name):
         try:
-            exists = self.api.hostgroup.exists(name=group_name)
+            exists = self.api.hostgroup.get(filter={'name': group_name})
             if not exists:
-                # XXX: group creation code is not tested
                 group_id = self.api.hostgroup.create({'name': group_name})['groupids'][0]
                 return group_id, True
             else:
@@ -387,7 +386,7 @@ class ZabbixBackend(ServiceBackend):
         Return (<host>, <is_created>) tuple as result.
         """
         try:
-            if not self.api.host.exists(host=host_name):
+            if not self.api.host.get(filter={'host': host_name}):
                 templates = [{'templateid': template_id} for template_id in templates_ids]
                 host_parameters = {
                     "host": host_name,

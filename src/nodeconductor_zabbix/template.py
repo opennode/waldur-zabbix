@@ -1,10 +1,13 @@
+import json
+
 from django import forms
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from rest_framework import serializers
 
-from nodeconductor.template.forms import TemplateForm
-from nodeconductor.template.serializers import BaseTemplateSerializer
-from nodeconductor_zabbix import models
+from nodeconductor.core.fields import JsonField
+from nodeconductor.template.forms import ServiceTemplateForm, ResourceTemplateForm
+from nodeconductor.template.serializers import BaseResourceTemplateSerializer, BaseServiceTemplateSerializer
+from . import models
 
 
 class NestedHyperlinkedRelatedField(serializers.HyperlinkedRelatedField):
@@ -17,7 +20,7 @@ class NestedHyperlinkedRelatedField(serializers.HyperlinkedRelatedField):
         return {'url': super(NestedHyperlinkedRelatedField, self).to_representation(value)}
 
 
-class HostProvisionTemplateForm(TemplateForm):
+class HostProvisionTemplateForm(ResourceTemplateForm):
     service = forms.ModelChoiceField(
         label='Zabbix service', queryset=models.ZabbixService.objects.all(), required=False)
     name = forms.CharField(label='Name', required=False)
@@ -31,10 +34,10 @@ class HostProvisionTemplateForm(TemplateForm):
         required=False,
         widget=FilteredSelectMultiple(verbose_name='Templates', is_stacked=False))
 
-    class Meta(TemplateForm.Meta):
-        fields = TemplateForm.Meta.fields + ('name', 'visible_name', 'host_group_name')
+    class Meta(ResourceTemplateForm.Meta):
+        fields = ResourceTemplateForm.Meta.fields + ('name', 'visible_name', 'host_group_name')
 
-    class Serializer(BaseTemplateSerializer):
+    class Serializer(BaseResourceTemplateSerializer):
         service = serializers.HyperlinkedRelatedField(
             view_name='zabbix-detail',
             queryset=models.ZabbixService.objects.all(),
@@ -58,11 +61,11 @@ class HostProvisionTemplateForm(TemplateForm):
         return cls.Serializer
 
     @classmethod
-    def get_resource_model(cls):
+    def get_model(cls):
         return models.Host
 
 
-class ITServiceProvisionTemplateForm(TemplateForm):
+class ITServiceProvisionTemplateForm(ResourceTemplateForm):
     name = forms.CharField(label='Name', required=False)
     service = forms.ModelChoiceField(
         label='Zabbix service', queryset=models.ZabbixService.objects.all(), required=False)
@@ -73,10 +76,10 @@ class ITServiceProvisionTemplateForm(TemplateForm):
     trigger = forms.ModelChoiceField(queryset=models.Trigger.objects.all().order_by('name'), required=False)
     agreed_sla = forms.FloatField()
 
-    class Meta(TemplateForm.Meta):
-        fields = TemplateForm.Meta.fields + ('host',)
+    class Meta(ResourceTemplateForm.Meta):
+        fields = ResourceTemplateForm.Meta.fields + ('host',)
 
-    class Serializer(BaseTemplateSerializer):
+    class Serializer(BaseResourceTemplateSerializer):
         service = serializers.HyperlinkedRelatedField(
             view_name='zabbix-detail',
             queryset=models.ZabbixService.objects.all(),
@@ -101,5 +104,58 @@ class ITServiceProvisionTemplateForm(TemplateForm):
         return cls.Serializer
 
     @classmethod
-    def get_resource_model(cls):
+    def get_model(cls):
         return models.ITService
+
+
+class ZabbixServiceCreationTemplateForm(ServiceTemplateForm):
+    name = forms.CharField()
+    backend_url = forms.CharField()
+    username = forms.CharField()
+    password = forms.CharField()
+
+    host_group_name = forms.CharField(required=False)
+    interface_parameters = forms.CharField(required=False, widget=forms.Textarea())
+    database_parameters = forms.CharField(required=False, widget=forms.Textarea())
+
+    def _clean_json(self, field_name):
+        jdata = self.cleaned_data[field_name]
+        if not jdata:
+            return jdata
+        try:
+            json.loads(jdata)
+        except:
+            raise forms.ValidationError('Invalid data in "%s"' % jdata)
+        return jdata
+
+    def clean_interface_parameters(self):
+        return self._clean_json('interface_parameters')
+
+    def clean_database_parameters(self):
+        return self._clean_json('database_parameters')
+
+    class Serializer(BaseServiceTemplateSerializer):
+        name = serializers.CharField()
+        backend_url = serializers.CharField()
+        username = serializers.CharField()
+        password = serializers.CharField()
+
+        host_group_name = serializers.CharField(required=False)
+        interface_parameters = JsonField(required=False)
+        database_parameters = JsonField(required=False)
+
+        def to_internal_value(self, data):
+            internal_values = super(ZabbixServiceCreationTemplateForm.Serializer, self).to_internal_value(data)
+            json_fields = 'interface_parameters', 'database_parameters'
+            for key, value in internal_values.items():
+                if key in json_fields:
+                    internal_values[key] = json.dumps(value)
+            return internal_values
+
+    @classmethod
+    def get_serializer_class(cls):
+        return cls.Serializer
+
+    @classmethod
+    def get_model(cls):
+        return models.ZabbixService
