@@ -208,6 +208,7 @@ class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.Template.objects.all().prefetch_related('items')
     serializer_class = serializers.TemplateSerializer
     lookup_field = 'uuid'
+    filter_class = filters.TemplateFilter
 
 
 class TriggerViewSet(structure_views.BaseServicePropertyViewSet):

@@ -1,5 +1,4 @@
 from datetime import timedelta
-import json
 
 from django.db import transaction
 from django.utils import timezone
@@ -77,9 +76,10 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
     class Meta(object):
         model = models.Template
         view_name = 'zabbix-template-detail'
-        fields = ('url', 'uuid', 'name', 'items', 'triggers')
+        fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings')
         extra_kwargs = {
             'url': {'lookup_field': 'uuid'},
+            'settings': {'lookup_field': 'uuid'},
         }
 
     def get_items(self, template):
