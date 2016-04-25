@@ -344,6 +344,93 @@ class ZabbixBackend(ServiceBackend):
 
         logger.info('Successfully pulled Zabbix IT services for settings %s.', self.settings)
 
+    def pull_user_groups(self):
+        logger.debug('About to pull Zabbix user groups.')
+
+        try:
+            zabbix_user_groups = self.api.usergroup.get()
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            raise ZabbixBackendError('Cannot pull user groups. Exception: %s' % e)
+        # Delete stale
+        zabbix_user_group_ids = set(i['usrgrpid'] for i in zabbix_user_groups)
+        models.UserGroup.objects.filter(settings=self.settings).exclude(backend_id__in=zabbix_user_group_ids).delete()
+        # Update or create
+        for zabbix_user_group in zabbix_user_groups:
+            models.UserGroup.objects.update_or_create(
+                backend_id=zabbix_user_group['usrgrpid'],
+                settings=self.settings,
+                defaults={'name': zabbix_user_group['name']})
+        logger.info('Successfully pulled Zabbix user groups for settings %s.', self.settings)
+
+    def pull_users(self):
+        logger.debug('About to pull Zabbix users.')
+
+        try:
+            zabbix_users = self.api.user.get(selectUsrgrps=['name', 'usrgrpid'])
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            raise ZabbixBackendError('Cannot pull users. Exception: %s' % e)
+        # Delete stale
+        zabbix_users_ids = set(i['userid'] for i in zabbix_users)
+        models.User.objects.filter(settings=self.settings).exclude(backend_id__in=zabbix_users_ids).delete()
+        # Update or create
+        for zabbix_user in zabbix_users:
+            groups = []
+            for zabbix_user_group in zabbix_user['usrgrps']:
+                group, _ = models.UserGroup.objects.get_or_create(
+                    backend_id=zabbix_user_group['usrgrpid'],
+                    settings=self.settings,
+                    defaults={'name': zabbix_user_group['name']})
+                groups.append(group)
+            user, _ = models.User.objects.update_or_create(
+                backend_id=zabbix_user['userid'],
+                settings=self.settings,
+                defaults={
+                    'name': zabbix_user['name'],
+                    'alias': zabbix_user['alias'],
+                    'surname': zabbix_user['surname'],
+                    'type': int(zabbix_user['type']),
+                    'state': models.User.States.OK,
+                })
+            user.groups.add(*groups)
+
+        logger.info('Successfully pulled Zabbix users for settings %s.', self.settings)
+
+    @log_backend_action()
+    def create_user(self, user):
+        try:
+            zabbix_user = self.api.user.create(
+                name=user.name,
+                surname=user.surname,
+                alias=user.alias,
+                type=user.type,
+                passwd=user.password,
+                usrgrps=[{'usrgrpid': group.backend_id for group in user.groups.all()}])
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
+        user.backend_id = zabbix_user['userids'][0]
+        user.save(update_fields=['backend_id'])
+
+    @log_backend_action()
+    def update_user(self, user):
+        try:
+            self.api.user.update(
+                userid=user.backend_id,
+                name=user.name,
+                surname=user.surname,
+                alias=user.alias,
+                type=user.type,
+                passwd=user.password,
+                usrgrps=[{'usrgrpid': group.backend_id for group in user.groups.all()}])
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
+
+    @log_backend_action()
+    def delete_user(self, user):
+        try:
+            self.api.user.delete(user.backend_id)
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
+
     def _get_triggers_map(self, zabbix_services):
         """
         Return map of Zabbix trigger ID to NodeConductor trigger ID
