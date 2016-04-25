@@ -136,7 +136,7 @@ def update_monitoring_items():
     """
     Regularly update value of monitored resources
     """
-    hosts = Host.objects.filter(object_id__isnull=False, state=Host.States.ONLINE)
+    hosts = Host.objects.filter(object_id__isnull=False, state=Host.States.OK)
     for host in hosts:
         for config in host.MONITORING_ITEMS_CONFIGS:
             update_host_scope_monitoring_items.delay(host.uuid.hex,
