@@ -216,3 +216,20 @@ class TriggerViewSet(structure_views.BaseServicePropertyViewSet):
     serializer_class = serializers.TriggerSerializer
     lookup_field = 'uuid'
     filter_class = filters.TriggerFilter
+
+
+class UserGroupViewSet(structure_views.BaseServicePropertyViewSet):
+    queryset = models.UserGroup.objects.all()
+    serializer_class = serializers.UserGroupSerializer
+    lookup_field = 'uuid'
+    # filter_class = filte TODO
+
+
+class UserViewSet(structure_views.BaseServicePropertyViewSet, StateExecutorViewSet):
+    queryset = models.User.objects.all()
+    serializer_class = serializers.UserSerializer
+    lookup_field = 'uuid'
+    # filter_class = TODO
+    create_executor = executors.UserCreateExecutor
+    update_executor = executors.UserUpdateExecutor
+    delete_executor = executors.UserDeleteExecutor
