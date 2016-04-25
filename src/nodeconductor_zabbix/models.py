@@ -8,8 +8,10 @@ from django.utils.encoding import python_2_unicode_compatible
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
 
-from . import managers
+from nodeconductor.core import models as core_models
 from nodeconductor.structure import models as structure_models
+
+from . import managers
 
 
 class ZabbixService(structure_models.Service):
@@ -200,3 +202,39 @@ class SlaHistoryEvent(models.Model):
 
     def __str__(self):
         return '%s - %s' % (self.timestamp, self.state)
+
+
+class UserGroup(structure_models.ServiceProperty):
+    @classmethod
+    def get_url_name(cls):
+        return 'zabbix-user-group'
+
+    def get_backend(self):
+        return self.settings.get_backend()
+
+
+@python_2_unicode_compatible
+class User(core_models.StateMixin, structure_models.ServiceProperty):
+    class Types(object):
+        DEFAULT = '1'
+        ADMIN = '2'
+        SUPERADMIN = '3'
+
+        CHOICES = ((DEFAULT, 'default'), (ADMIN, 'admin'), (SUPERADMIN, 'superadmin'))
+
+    alias = models.CharField(max_length=150)
+    surname = models.CharField(max_length=150)
+    type = models.CharField(max_length=30, choices=Types.CHOICES, default=Types.DEFAULT)
+    groups = models.ManyToManyField(UserGroup, related_name='users')
+    # password can be blank if user was pulled from zabbix, not created through NC
+    password = models.CharField(max_length=150, blank=True)
+
+    def __str__(self):
+        return '%s | %s' % (self.alias, self.settings)
+
+    @classmethod
+    def get_url_name(cls):
+        return 'zabbix-user'
+
+    def get_backend(self):
+        return self.settings.get_backend()
