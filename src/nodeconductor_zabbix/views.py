@@ -36,7 +36,7 @@ class BaseZabbixResourceViewSet(structure_views.BaseOnlineResourceViewSet):
 
 class NoHostsException(exceptions.APIException):
     status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = 'There are no ONLINE hosts that match given query.'
+    default_detail = 'There are no OK hosts that match given query.'
 
 
 class NoItemsException(exceptions.APIException):
@@ -77,8 +77,8 @@ class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
          - 'item' - name of host template item.
         """
         host = self.get_object()
-        if host.state != models.Host.States.ONLINE:
-            raise IncorrectStateException('Host has to be ONLINE to get items history.')
+        if host.state != models.Host.States.OK:
+            raise IncorrectStateException('Host has to be OK to get items history.')
         stats = self._get_stats(request, [host])
         return Response(stats, status=status.HTTP_200_OK)
 
