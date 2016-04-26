@@ -1,4 +1,8 @@
-from nodeconductor.core import executors, tasks
+from celery import chain
+
+from nodeconductor.core import executors, tasks, utils
+
+from .tasks import SMSTask
 
 
 class HostCreateExecutor(executors.CreateExecutor):
@@ -51,16 +55,28 @@ class UserCreateExecutor(executors.CreateExecutor):
 
     @classmethod
     def get_task_signature(cls, user, serialized_user, **kwargs):
-        return tasks.BackendMethodTask().si(
-            serialized_user, 'create_user', state_transition='begin_creating')
+        creation_tasks = [tasks.BackendMethodTask().si(
+            serialized_user, 'create_user', state_transition='begin_creating')]
+        # send SMS if user has phone number
+        if user.phone:
+            serialized_settings = utils.serialize_instance(user.settings)
+            message = 'Zabbix "%s" password: %s' % (user.settings.name, user.password)
+            creation_tasks.append(SMSTask().si(serialized_settings, message, user.phone))
+        return chain(*creation_tasks)
 
 
 class UserUpdateExecutor(executors.UpdateExecutor):
 
     @classmethod
     def get_task_signature(cls, user, serialized_user, **kwargs):
-        return tasks.BackendMethodTask().si(
-            serialized_user, 'update_user', state_transition='begin_updating')
+        update_tasks = [tasks.BackendMethodTask().si(
+            serialized_user, 'update_user', state_transition='begin_updating')]
+        # send SMS if user password has been updated
+        if 'password' in kwargs.get('updated_fields', []) and user.phone:
+            serialized_settings = utils.serialize_instance(user.settings)
+            message = 'Zabbix "%s" password: %s' % (user.settings.name, user.password)
+            update_tasks.append(SMSTask().si(serialized_settings, message, user.phone))
+        return chain(*update_tasks)
 
 
 class UserDeleteExecutor(executors.DeleteExecutor):

@@ -283,6 +283,7 @@ class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropert
     state = MappedChoiceField(
         choices={v: v for _, v in models.User.States.CHOICES},
         choice_mappings={v: k for k, v in models.User.States.CHOICES},
+        read_only=True,
     )
     type = MappedChoiceField(
         choices={v: v for _, v in models.User.Types.CHOICES},
@@ -291,9 +292,8 @@ class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropert
 
     class Meta(object):
         model = models.User
-        fields = 'url', 'alias', 'name', 'surname', 'type', 'groups', 'backend_id', 'settings', 'state'
-        write_only_fields = 'password',
-        read_only_fields = 'url', 'backend_id', 'state'
+        fields = 'url', 'alias', 'name', 'surname', 'type', 'groups', 'backend_id', 'settings', 'state', 'phone'
+        read_only_fields = 'url', 'backend_id',
         protected_fields = 'settings',
         extra_kwargs = {
             'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-user-detail'},
@@ -305,6 +305,12 @@ class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropert
         fields['settings'].queryset = structure_models.ServiceSettings.objects.filter(
             type=apps.ZabbixConfig.service_name)
         return fields
+
+    def validate_type(self, value):
+        user = self.context['request'].user
+        if not user.is_staff and value != models.User.Types.DEFAULT:
+            raise serializers.ValidationError('Cannot create not default user.')
+        return value
 
     def validate(self, attrs):
         settings = attrs.get('settings') or self.instance.settings

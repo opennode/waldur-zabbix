@@ -228,6 +228,8 @@ class User(core_models.StateMixin, structure_models.ServiceProperty):
     groups = models.ManyToManyField(UserGroup, related_name='users')
     # password can be blank if user was pulled from zabbix, not created through NC
     password = models.CharField(max_length=150, blank=True)
+    # phone is NC-only field
+    phone = models.CharField(max_length=30, blank=True)
 
     def __str__(self):
         return '%s | %s' % (self.alias, self.settings)

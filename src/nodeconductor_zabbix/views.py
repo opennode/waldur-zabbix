@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from django.utils import six
-from rest_framework import status, exceptions
+from rest_framework import status, exceptions, response
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from nodeconductor.core.exceptions import IncorrectStateException
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.views import StateExecutorViewSet
-from nodeconductor.core.utils import datetime_to_timestamp
+from nodeconductor.core.utils import datetime_to_timestamp, pwgen
 from nodeconductor.monitoring.utils import get_period
 from nodeconductor.structure import views as structure_views
 
@@ -208,7 +208,7 @@ class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.Template.objects.all().prefetch_related('items')
     serializer_class = serializers.TemplateSerializer
     lookup_field = 'uuid'
-    filter_class = filters.TemplateFilter
+    filter_class = filters.ZabbixServicePropertyFilter
 
 
 class TriggerViewSet(structure_views.BaseServicePropertyViewSet):
@@ -222,14 +222,25 @@ class UserGroupViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.UserGroup.objects.all()
     serializer_class = serializers.UserGroupSerializer
     lookup_field = 'uuid'
-    # filter_class = filte TODO
+    filter_class = filters.ZabbixServicePropertyFilter
 
 
 class UserViewSet(structure_views.BaseServicePropertyViewSet, StateExecutorViewSet):
     queryset = models.User.objects.all()
     serializer_class = serializers.UserSerializer
     lookup_field = 'uuid'
-    # filter_class = TODO
+    filter_class = filters.ZabbixServicePropertyFilter
     create_executor = executors.UserCreateExecutor
     update_executor = executors.UserUpdateExecutor
     delete_executor = executors.UserDeleteExecutor
+
+    @detail_route(methods=['post'])
+    def password(self, request, uuid):
+        user = self.get_object()
+        user.password = pwgen()
+        user.save()
+        executors.UserUpdateExecutor.execute(user, updated_fields=['password'])
+        return response.Response(
+            {'detail': 'password update was scheduled successfully', 'password': user.password},
+            status=status.HTTP_200_OK
+        )
