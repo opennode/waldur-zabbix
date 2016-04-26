@@ -103,6 +103,8 @@ class ZabbixBackend(ServiceBackend):
     def sync(self):
         self._get_or_create_group_id(self.host_group_name)
         self.pull_templates()
+        self.pull_user_groups()
+        self.pull_users()
         for name in self.templates_names:
             if not models.Template.objects.filter(name=name).exists():
                 raise ZabbixBackendError('Cannot find template with name "%s".' % name)
