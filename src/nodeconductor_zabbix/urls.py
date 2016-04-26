@@ -8,3 +8,5 @@ def register_in(router):
     router.register(r'zabbix-service-project-link', views.ZabbixServiceProjectLinkViewSet, base_name='zabbix-spl')
     router.register(r'zabbix-templates', views.TemplateViewSet, base_name='zabbix-template')
     router.register(r'zabbix-triggers', views.TriggerViewSet, base_name='zabbix-trigger')
+    router.register(r'zabbix-user-groups', views.UserGroupViewSet, base_name='zabbix-user-group')
+    router.register(r'zabbix-users', views.UserViewSet, base_name='zabbix-user')

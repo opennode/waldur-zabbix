@@ -5,12 +5,13 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from nodeconductor.core.fields import JsonField, MappedChoiceField
-from nodeconductor.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
-from nodeconductor.core.utils import datetime_to_timestamp
+from nodeconductor.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
+                                            AugmentedSerializerMixin)
+from nodeconductor.core.utils import datetime_to_timestamp, pwgen
 from nodeconductor.monitoring.utils import get_period
 from nodeconductor.structure import serializers as structure_serializers, models as structure_models
 
-from . import models, backend
+from . import models, backend, apps
 
 
 class ServiceSerializer(structure_serializers.BaseServiceSerializer):
@@ -259,3 +260,79 @@ class ItemsAggregatedValuesSerializer(serializers.Serializer):
         if 'start' in data and 'end' in data and data['start'] >= data['end']:
             raise serializers.ValidationError("End must occur after start")
         return data
+
+
+class UserGroupSerializer(structure_serializers.BasePropertySerializer):
+    class Meta(object):
+        model = models.UserGroup
+        fields = 'url', 'name', 'settings'
+        read_only_fields = 'url', 'backend_id'
+        extra_kwargs = {
+            'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-user-group-detail'},
+            'settings': {'lookup_field': 'uuid'},
+        }
+
+
+class NestedUserGroupSerializer(UserGroupSerializer, HyperlinkedRelatedModelSerializer):
+    class Meta(UserGroupSerializer.Meta):
+        pass
+
+
+class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropertySerializer):
+    groups = NestedUserGroupSerializer(queryset=models.UserGroup.objects.all(), many=True)
+    state = MappedChoiceField(
+        choices={v: v for _, v in models.User.States.CHOICES},
+        choice_mappings={v: k for k, v in models.User.States.CHOICES},
+        read_only=True,
+    )
+    type = MappedChoiceField(
+        choices={v: v for _, v in models.User.Types.CHOICES},
+        choice_mappings={v: k for k, v in models.User.Types.CHOICES},
+    )
+
+    class Meta(object):
+        model = models.User
+        fields = 'url', 'alias', 'name', 'surname', 'type', 'groups', 'backend_id', 'settings', 'state', 'phone'
+        read_only_fields = 'url', 'backend_id',
+        protected_fields = 'settings',
+        extra_kwargs = {
+            'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-user-detail'},
+            'settings': {'lookup_field': 'uuid'},
+        }
+
+    def get_fields(self):
+        fields = super(UserSerializer, self).get_fields()
+        fields['settings'].queryset = structure_models.ServiceSettings.objects.filter(
+            type=apps.ZabbixConfig.service_name)
+        # show user password only after creation
+        if self.context['request'].method == 'POST' and self.instance is None:
+            fields['password'] = serializers.CharField(read_only=True)
+        return fields
+
+    def validate_type(self, value):
+        user = self.context['request'].user
+        if not user.is_staff and value != models.User.Types.DEFAULT:
+            raise serializers.ValidationError('Cannot create not default user.')
+        return value
+
+    def validate(self, attrs):
+        settings = attrs.get('settings') or self.instance.settings
+        groups = attrs.get('groups', [])
+        if any([group.settings != settings for group in groups]):
+            raise serializers.ValidationError('User groups and user should belong to the same service settings')
+        return attrs
+
+    def create(self, attrs):
+        groups = attrs.pop('groups', [])
+        attrs['password'] = pwgen()
+        user = super(UserSerializer, self).create(attrs)
+        user.groups.add(*groups)
+        return user
+
+    def update(self, user, attrs):
+        new_groups = set(attrs.pop('groups', []))
+        old_groups = set(user.groups.all())
+        user = super(UserSerializer, self).update(user, attrs)
+        user.groups.remove(*(old_groups - new_groups))
+        user.groups.add(*(new_groups - old_groups))
+        return user

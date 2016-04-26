@@ -4,9 +4,11 @@ import logging
 
 from celery import shared_task
 from dateutil.relativedelta import relativedelta
+from django.conf import settings as django_settings
 from django.contrib.contenttypes.models import ContentType
+from django.core.mail import send_mail
 
-from nodeconductor.core.tasks import retry_if_false
+from nodeconductor.core.tasks import retry_if_false, Task
 from nodeconductor.core.utils import datetime_to_timestamp
 from nodeconductor.monitoring.models import ResourceItem, ResourceSla, ResourceSlaStateTransition
 from nodeconductor.monitoring.utils import format_period
@@ -173,3 +175,20 @@ def after_creation_monitoring_item_update(host_uuid, config):
     item_value = update_host_scope_monitoring_items(
         host_uuid, config['zabbix_item_name'], config['monitoring_item_name'])
     return item_value in config.get('after_creation_update_terminate_values', []) or item_value is None
+
+
+class SMSTask(Task):
+    """ Send SMS to given mobile number based on service settings or django settings """
+
+    def execute(self, settings, message, phone):
+        options = settings.options or {}
+        nc_settings = getattr(django_settings, 'NODECONDUCTOR_ZABBIX_SMS_SETTINGS')
+
+        sender = options.get('sms_email_from') or nc_settings.get('SMS_EMAIL_FROM')
+        recipient = options.get('sms_email_rcpt') or nc_settings.get('SMS_EMAIL_RCPT')
+
+        if sender and recipient and '{phone}' in recipient:
+            send_mail('', message, sender, [recipient.format(phone=phone)], fail_silently=True)
+        else:
+            logger.warning('SMS was not sent, because `sms_email_from` and `sms_email_rcpt` '
+                           'were not configured properly.')
