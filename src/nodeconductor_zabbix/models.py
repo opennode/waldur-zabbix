@@ -231,6 +231,9 @@ class User(core_models.StateMixin, structure_models.ServiceProperty):
     # phone is NC-only field
     phone = models.CharField(max_length=30, blank=True)
 
+    class Meta(object):
+        unique_together = ('alias', 'settings')
+
     def __str__(self):
         return '%s | %s' % (self.alias, self.settings)
 

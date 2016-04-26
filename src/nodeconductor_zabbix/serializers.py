@@ -7,7 +7,7 @@ from rest_framework import serializers
 from nodeconductor.core.fields import JsonField, MappedChoiceField
 from nodeconductor.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
                                             AugmentedSerializerMixin)
-from nodeconductor.core.utils import datetime_to_timestamp
+from nodeconductor.core.utils import datetime_to_timestamp, pwgen
 from nodeconductor.monitoring.utils import get_period
 from nodeconductor.structure import serializers as structure_serializers, models as structure_models
 
@@ -304,6 +304,9 @@ class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropert
         fields = super(UserSerializer, self).get_fields()
         fields['settings'].queryset = structure_models.ServiceSettings.objects.filter(
             type=apps.ZabbixConfig.service_name)
+        # show user password only after creation
+        if self.context['request'].method == 'POST' and self.instance is None:
+            fields['password'] = serializers.CharField(read_only=True)
         return fields
 
     def validate_type(self, value):
@@ -321,6 +324,7 @@ class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropert
 
     def create(self, attrs):
         groups = attrs.pop('groups', [])
+        attrs['password'] = pwgen()
         user = super(UserSerializer, self).create(attrs)
         user.groups.add(*groups)
         return user

@@ -30,9 +30,6 @@ class Migration(migrations.Migration):
                 ('password', models.CharField(max_length=150, blank=True)),
                 ('phone', models.CharField(max_length=30, blank=True)),
             ],
-            options={
-                'abstract': False,
-            },
         ),
         migrations.CreateModel(
             name='UserGroup',
@@ -60,5 +57,9 @@ class Migration(migrations.Migration):
         migrations.AlterUniqueTogether(
             name='usergroup',
             unique_together=set([('settings', 'backend_id')]),
+        ),
+        migrations.AlterUniqueTogether(
+            name='user',
+            unique_together=set([('alias', 'settings')]),
         ),
     ]
