@@ -26,7 +26,9 @@ class Migration(migrations.Migration):
                 ('backend_id', models.CharField(max_length=255, db_index=True)),
                 ('alias', models.CharField(max_length=150)),
                 ('surname', models.CharField(max_length=150)),
-                ('type', models.CharField(default=1, max_length=30, choices=[(1, 'default'), (2, 'admin'), (3, 'superadmin')])),
+                ('type', models.CharField(default='1', max_length=30, choices=[('1', 'default'), ('2', 'admin'), ('3', 'superadmin')])),
+                ('password', models.CharField(max_length=150, blank=True)),
+                ('phone', models.CharField(max_length=30, blank=True)),
             ],
             options={
                 'abstract': False,
