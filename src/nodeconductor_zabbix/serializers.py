@@ -118,6 +118,8 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         view_name = 'zabbix-host-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
             'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates')
+        protected_fields = structure_serializers.BaseResourceSerializer.Meta.protected_fields + (
+            'interface_parameters', )
 
     def get_resource_fields(self):
         return super(HostSerializer, self).get_resource_fields() + ['scope']

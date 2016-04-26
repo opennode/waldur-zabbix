@@ -147,7 +147,6 @@ class ZabbixBackend(ServiceBackend):
                 'host': host.name,
                 'name': host.visible_name,
                 'group_id': group_id,
-                'interfaces': [host.interface_parameters],
                 'templates': [{'templateid': t.backend_id} for t in host.templates.all()]
             })
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
