@@ -9,14 +9,6 @@ from .models import Host
 logger = logging.getLogger(__name__)
 
 
-def update_hosts_visible_name_on_scope_name_change(sender, instance, **kwargs):
-    """ Change host visible name if visible_name of hosts scope changed """
-    for host in Host.objects.filter(scope=instance):
-        host.visible_name = host.get_visible_name_from_scope(host.scope)
-        host.save()
-        executors.HostUpdateExecutor.execute(host, updated_fields=['visible_name'])
-
-
 def delete_hosts_on_scope_deletion(sender, instance, name, source, target, **kwargs):
     if target != Resource.States.DELETING:
         return
