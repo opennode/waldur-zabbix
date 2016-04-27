@@ -112,12 +112,18 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
     scope = GenericRelatedField(related_models=structure_models.Resource.get_all_models(), required=False)
     templates = NestedTemplateSerializer(
         queryset=models.Template.objects.all().prefetch_related('items'), many=True, required=False)
+    status = MappedChoiceField(
+        choices={v: v for _, v in models.Host.Statuses.CHOICES},
+        choice_mappings={v: k for k, v in models.Host.Statuses.CHOICES},
+    )
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.Host
         view_name = 'zabbix-host-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates')
+            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates', 'error', 'status')
+        read_only_fields = structure_serializers.BaseResourceSerializer.Meta.read_only_fields + (
+            'error',)
         protected_fields = structure_serializers.BaseResourceSerializer.Meta.protected_fields + (
             'interface_parameters', )
 

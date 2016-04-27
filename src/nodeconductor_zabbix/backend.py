@@ -126,6 +126,7 @@ class ZabbixBackend(ServiceBackend):
                 group_id=group_id,
                 templates_ids=templates_ids,
                 interface_parameters=interface_parameters,
+                status=host.status,
             )
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             six.reraise(ZabbixBackendError, e)
@@ -147,7 +148,8 @@ class ZabbixBackend(ServiceBackend):
                 'host': host.name,
                 'name': host.visible_name,
                 'group_id': group_id,
-                'templates': [{'templateid': t.backend_id} for t in host.templates.all()]
+                'templates': [{'templateid': t.backend_id} for t in host.templates.all()],
+                'status': host.status,
             })
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             six.reraise(ZabbixBackendError, e)
@@ -468,7 +470,7 @@ class ZabbixBackend(ServiceBackend):
         except (pyzabbix.ZabbixAPIException, IndexError, KeyError) as e:
             raise ZabbixBackendError('Cannot get or create group with name "%s". Exception: %s' % (group_name, e))
 
-    def _get_or_create_host_id(self, host_name, visible_name, group_id, templates_ids, interface_parameters):
+    def _get_or_create_host_id(self, host_name, visible_name, group_id, templates_ids, interface_parameters, status):
         """ Create Zabbix host with given parameters.
 
         Return (<host>, <is_created>) tuple as result.
@@ -482,6 +484,7 @@ class ZabbixBackend(ServiceBackend):
                     "interfaces": [interface_parameters],
                     "groups": [{"groupid": group_id}],
                     "templates": templates,
+                    "status": status,
                 }
                 host = self.api.host.create(host_parameters)['hostids'][0]
                 return host, True
