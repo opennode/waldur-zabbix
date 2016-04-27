@@ -51,10 +51,18 @@ class Host(structure_models.NewResource):
         }
     ]
 
+    class Statuses(object):
+        MONITORED = '0'
+        UNMONITORED = '1'
+
+        CHOICES = ((MONITORED, 'monitored'), (UNMONITORED, 'unmonitored'))
+
     service_project_link = models.ForeignKey(ZabbixServiceProjectLink, related_name='hosts', on_delete=models.PROTECT)
     visible_name = models.CharField(_('visible name'), max_length=VISIBLE_NAME_MAX_LENGTH)
     interface_parameters = JSONField(blank=True)
     host_group_name = models.CharField(_('host group name'), max_length=64, blank=True)
+    error = models.CharField(max_length=500, blank=True, help_text='Error text if Zabbix agent is unavailable.')
+    status = models.CharField(max_length=30, choices=Statuses.CHOICES, default=Statuses.MONITORED)
     templates = models.ManyToManyField('Template', related_name='hosts')
 
     content_type = models.ForeignKey(ContentType, null=True)
