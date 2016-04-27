@@ -14,7 +14,7 @@ def update_hosts_visible_name_on_scope_name_change(sender, instance, **kwargs):
     for host in Host.objects.filter(scope=instance):
         host.visible_name = host.get_visible_name_from_scope(host.scope)
         host.save()
-        executors.HostUpdateExecutor.execute(host)
+        executors.HostUpdateExecutor.execute(host, updated_fields=['visible_name'])
 
 
 def delete_hosts_on_scope_deletion(sender, instance, name, source, target, **kwargs):

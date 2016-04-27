@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 from django.apps import AppConfig
-from django.db.models import signals
 from django_fsm import signals as fsm_signals
 
 
@@ -25,16 +24,10 @@ class ZabbixConfig(AppConfig):
 
         from . import handlers
         for index, resource_model in enumerate(structure_models.Resource.get_all_models()):
-            signals.post_save.connect(
-                handlers.update_hosts_visible_name_on_scope_name_change,
-                sender=resource_model,
-                dispatch_uid='nodeconductor_zabbix.handlers.update_hosts_visible_name_on_scope_name_change_%s_%s' % (
-                              index, resource_model.__name__)
-            )
 
             fsm_signals.post_transition.connect(
                 handlers.delete_hosts_on_scope_deletion,
                 sender=resource_model,
                 dispatch_uid='nodeconductor_zabbix.handlers.delete_hosts_on_scope_deletion_%s_%s' % (
-                              index, resource_model.__name__)
+                    index, resource_model.__name__)
             )
