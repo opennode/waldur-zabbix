@@ -73,7 +73,8 @@ class ITServiceProvisionTemplateForm(ResourceTemplateForm):
     algorithm = forms.ChoiceField(choices=[(v, v) for _, v in models.ITService.Algorithm.CHOICES], required=False)
     sort_order = forms.IntegerField(initial=1)
     is_main = forms.BooleanField(initial=True)
-    trigger = forms.ModelChoiceField(queryset=models.Trigger.objects.all().order_by('name'), required=False)
+    trigger = forms.ModelChoiceField(
+        queryset=models.Trigger.objects.all().order_by('template__name', 'name'), required=False)
     agreed_sla = forms.FloatField()
 
     class Meta(ResourceTemplateForm.Meta):
