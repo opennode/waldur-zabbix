@@ -260,7 +260,7 @@ class ZabbixBackend(ServiceBackend):
         """
         logger.debug('About to pull Zabbix items for template %s', template.name)
         try:
-            fields = ('itemid', 'key_', 'value_type', 'units', 'history', 'delay')
+            fields = ('itemid', 'name', 'key_', 'value_type', 'units', 'history', 'delay')
             zabbix_items = self.api.item.get(output=fields, templateids=template.backend_id)
         except pyzabbix.ZabbixAPIException as e:
             message = 'Cannot pull template items for template %s. Exception: %s' % (template.name, e)
@@ -273,7 +273,8 @@ class ZabbixBackend(ServiceBackend):
         # Update or create zabbix items
         for zabbix_item in zabbix_items:
             defaults = {
-                'name': zabbix_item['key_'],
+                'name': zabbix_item['name'],
+                'key': zabbix_item['key_'],
                 'value_type': int(zabbix_item['value_type']),
                 'units': zabbix_item['units'],
                 'history': int(zabbix_item['history']),
@@ -369,7 +370,7 @@ class ZabbixBackend(ServiceBackend):
         logger.debug('About to pull Zabbix users.')
 
         try:
-            zabbix_users = self.api.user.get(selectUsrgrps=['name', 'usrgrpid'])
+            zabbix_users = self.api.user.get(selectUsrgrps=['name', 'usrgrpid'], output='extend')
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             raise ZabbixBackendError('Cannot pull users. Exception: %s' % e)
         # Delete stale
@@ -590,7 +591,7 @@ class ZabbixBackend(ServiceBackend):
             history_table = 'history_uint'
             trend_table = 'trends_uint'
         else:
-            raise ZabbixBackendError('Cannot get statistics for non-numerical item %s' % item.name)
+            raise ZabbixBackendError('Cannot get statistics for non-numerical item %s' % item.key)
 
         history_retention_days = item.history
         history_delay_seconds = item.delay or self.HISTORY_DELAY_SECONDS
@@ -600,9 +601,9 @@ class ZabbixBackend(ServiceBackend):
 
         points = points[::-1]
         history_cursor = self._get_history(
-            item.name, hostid, history_table, points[-1] - history_delay_seconds, points[0])
+            item.key, hostid, history_table, points[-1] - history_delay_seconds, points[0])
         trends_cursor = self._get_history(
-            item.name, hostid, trend_table, points[-1] - trend_delay_seconds, points[0])
+            item.key, hostid, trend_table, points[-1] - trend_delay_seconds, points[0])
 
         values = []
         if points[0] > trends_start_date:
@@ -661,21 +662,21 @@ class ZabbixBackend(ServiceBackend):
         # XXX: We need to get values from table "trends" if end_timestamp < item.history.
         if int_items:
             cursor = self._get_aggregated_values(
-                item_keys=[item.name for item in int_items],
+                item_keys=[item.key for item in int_items],
                 table='history',
                 **default_kwargs
             )
             db_data += cursor.fetchall()
         if float_items:
             cursor = self._get_aggregated_values(
-                item_keys=[item.name for item in float_items],
+                item_keys=[item.key for item in float_items],
                 table='history_uint',
                 **default_kwargs
             )
             db_data += cursor.fetchall()
 
         # Prepare data - convert B to MB if needed
-        items_keys = {item.name: item for item in items}
+        items_keys = {item.key: item for item in items}
         aggregated_values = {}
         for key, value in db_data:
             item = items_keys[key]
