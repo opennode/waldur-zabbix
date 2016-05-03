@@ -29,7 +29,7 @@ class HostDeleteExecutor(executors.DeleteExecutor):
             return tasks.BackendMethodTask().si(
                 serialized_host, 'delete_host', state_transition='begin_deleting')
         else:
-            return tasks.StateTransitionTask(serialized_host, state_transition='begin_deleting')
+            return tasks.StateTransitionTask().si(serialized_host, state_transition='begin_deleting')
 
 
 class ITServiceCreateExecutor(executors.CreateExecutor):
@@ -48,7 +48,7 @@ class ITServiceDeleteExecutor(executors.DeleteExecutor):
             return tasks.BackendMethodTask().si(
                 serialized_itservice, 'delete_itservice', state_transition='begin_deleting')
         else:
-            return tasks.StateTransitionTask(serialized_itservice, state_transition='begin_deleting')
+            return tasks.StateTransitionTask().si(serialized_itservice, state_transition='begin_deleting')
 
 
 class UserCreateExecutor(executors.CreateExecutor):
@@ -87,4 +87,4 @@ class UserDeleteExecutor(executors.DeleteExecutor):
             return tasks.BackendMethodTask().si(
                 serialized_user, 'delete_user', state_transition='begin_deleting')
         else:
-            return tasks.StateTransitionTask(serialized_user, state_transition='begin_deleting')
+            return tasks.StateTransitionTask().si(serialized_user, state_transition='begin_deleting')

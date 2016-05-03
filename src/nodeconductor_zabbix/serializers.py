@@ -115,6 +115,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
     status = MappedChoiceField(
         choices={v: v for _, v in models.Host.Statuses.CHOICES},
         choice_mappings={v: k for k, v in models.Host.Statuses.CHOICES},
+        read_only=True,
     )
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
