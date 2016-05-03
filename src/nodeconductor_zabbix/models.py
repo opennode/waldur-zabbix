@@ -122,6 +122,7 @@ class Item(models.Model):
             (TEXT, 'Text')
         )
 
+    key = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
     template = models.ForeignKey(Template, related_name='items')
     backend_id = models.CharField(max_length=64)
@@ -137,12 +138,16 @@ class Item(models.Model):
         return self.name
 
 
+@python_2_unicode_compatible
 class Trigger(structure_models.ServiceProperty):
     template = models.ForeignKey(Template, related_name='triggers')
 
     @classmethod
     def get_url_name(cls):
         return 'zabbix-trigger'
+
+    def __str__(self):
+        return '%s-%s | %s' % (self.template.name, self.name, self.settings)
 
 
 # Zabbix trigger name max length - 255

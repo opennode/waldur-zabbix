@@ -74,7 +74,8 @@ class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
         Response is list of datapoints, each of which is dictionary with following fields:
          - 'point' - timestamp;
          - 'value' - values are converted from bytes to megabytes, if possible;
-         - 'item' - name of host template item.
+         - 'item' - key of host template item;
+         - 'item_name' - name of host template item.
         """
         host = self.get_object()
         if host.state != models.Host.States.OK:
@@ -101,9 +102,9 @@ class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
          - ?start - start of aggregation period as timestamp. Default: 1 hour ago.
          - ?end - end of aggregation period as timestamp. Default: now.
          - ?method - aggregation method. Default: MAX. Choices: MIN, MAX.
-         - ?item - item name. Can be list. Required.
+         - ?item - item key. Can be list. Required.
 
-        Response format: {<item name>: <aggregated value>, ...}
+        Response format: {<item key>: <aggregated value>, ...}
 
         Endpoint will return status 400 if there are no hosts or items that match request parameters.
         """
@@ -130,7 +131,7 @@ class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
 
     def _get_items(self, request, hosts):
         items = request.query_params.getlist('item')
-        items = models.Item.objects.filter(template__hosts__in=hosts, name__in=items).distinct()
+        items = models.Item.objects.filter(template__hosts__in=hosts, key__in=items).distinct()
         if not items:
             raise NoItemsException()
         return items
@@ -153,8 +154,9 @@ class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
             for point, value in zip(points, values):
                 stats.append({
                     'point': point,
-                    'item': item.name,
-                    'value': value
+                    'item': item.key,
+                    'item_name': item.name,
+                    'value': value,
                 })
         return stats
 

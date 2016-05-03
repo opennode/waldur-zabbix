@@ -164,32 +164,18 @@ Example rendering of the host object:
                 "uuid": "99771937d38d41ceba3352b99e01b00b",
                 "name": "Template NodeConductor Instance",
                 "items": [
-                    "kvm.vm.cpu.num",
-                    "kvm.vm.cpu.util",
-                    "kvm.vm.disk.size",
-                    "kvm.vm.memory.size",
-                    "kvm.vm.memory.size.used",
-                    "kvm.vm.memory.util",
-                    "kvm.vm.memory_util",
-                    "kvm.vm.status",
-                    "openstack.instance.cpu.num",
-                    "openstack.instance.cpu.util",
-                    "openstack.instance.cpu_util",
-                    "openstack.instance.disk.ephemeral.size",
-                    "openstack.instance.disk.read.bytes",
-                    "openstack.instance.disk.read.requests",
-                    "openstack.instance.disk.root.size",
-                    "openstack.instance.disk.size",
-                    "openstack.instance.disk.write.bytes",
-                    "openstack.instance.disk.write.requests",
-                    "openstack.instance.memory",
-                    "openstack.instance.network.incoming.bytes",
-                    "openstack.instance.network.incoming.packets",
-                    "openstack.instance.network.outgoing.bytes",
-                    "openstack.instance.network.outgoing.packets",
-                    "openstack.instance.status",
-                    "openstack.instance.vcpus",
-                    "openstack.vm.disk.size"
+                    {
+                        "name": "Host name of zabbix_agentd running",
+                        "key": "agent.hostname"
+                    },
+                    {
+                        "name": "Agent ping",
+                        "key": "agent.ping"
+                    },
+                    {
+                        "name": "Version of zabbix_agent(d) running",
+                        "key": "agent.version"
+                    }
                 ]
             }
         ],
