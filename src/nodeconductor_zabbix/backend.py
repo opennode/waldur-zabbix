@@ -202,7 +202,7 @@ class ZabbixBackend(ServiceBackend):
             zabbix_templates = self.api.template.get(output=['name', 'templateid'])
             zabbix_templates_ids = set([t['templateid'] for t in zabbix_templates])
             # Delete stale templates
-            models.Template.objects.exclude(backend_id__in=zabbix_templates_ids).delete()
+            models.Template.objects.filter(settings=self.settings).exclude(backend_id__in=zabbix_templates_ids).delete()
             # Update or create zabbix templates
             for zabbix_template in zabbix_templates:
                 nc_template, created = models.Template.objects.get_or_create(
