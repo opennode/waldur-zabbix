@@ -219,7 +219,7 @@ class ZabbixBackend(ServiceBackend):
 
         logger.debug('About to pull Zabbix items for all templates.')
         errors = []
-        for template in models.Template.objects.all():
+        for template in models.Template.objects.filter(settings=self.settings):
             try:
                 self.pull_items(template)
                 self.pull_triggers(template)
