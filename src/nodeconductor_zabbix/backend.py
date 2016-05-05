@@ -186,7 +186,10 @@ class ZabbixBackend(ServiceBackend):
         else:
             itservice.backend_id = service_id
             itservice.name = name
-            itservice.save(update_fields=['backend_id'])
+
+            data = self.get_itservice(itservice.backend_id)
+            itservice.backend_trigger_id = data['triggerid']
+            itservice.save(update_fields=['backend_id', 'name', 'backend_trigger_id'])
 
     @log_backend_action()
     def delete_itservice(self, itservice):
@@ -532,22 +535,16 @@ class ZabbixBackend(ServiceBackend):
             message = 'Can not get Zabbix IT service SLA value for service with ID %s. Exception: %s'
             raise ZabbixBackendError(message % (service_id, e))
 
-    def get_itservice_status(self, service_id):
+    def get_itservice(self, service_id):
         try:
-            data = self.api.service.get(
-                filter={'serviceids': service_id},
-                output=['status']
-            )
-            return data[0]['status']
+            response = self.api.service.get(filter={'serviceid': service_id}, output='extend')
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             raise ZabbixBackendError('Can not get status of Zabbix IT service with ID %s. Exception: %s',
                                      service_id, e)
-        except IndexError:
+        if len(response) != 1:
             raise ZabbixBackendError('Zabbix IT service with ID %s is not found. '
-                                     'Response is %s', service_id, data)
-        except KeyError:
-            raise ZabbixBackendError('Status of Zabbix IT service with ID %s is not found. '
-                                     'Response is %s', service_id, data)
+                                     'Response is %s', service_id, response)
+        return response[0]
 
     def get_sla_range(self, serviceid):
         """
