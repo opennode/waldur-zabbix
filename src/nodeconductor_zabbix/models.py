@@ -37,14 +37,14 @@ class Host(structure_models.NewResource):
 
     # list of items that are added as monitoring items to hosts scope.
     # parameters:
-    #  zabbix_item_name - name of zabbix item,
+    #  zabbix_item_key - Zabbix item key,
     #  monitoring_item_name - name of monitoring item that will be attached to host scope,
     #  after_creation_update - True if monitoring item need to be updated frequently after host creation,
     #  after_creation_update_terminate_values - stop after_creation_update if monitoring item value is one of
     #                                           terminated values.
     MONITORING_ITEMS_CONFIGS = [
         {
-            'zabbix_item_name': 'application.status',
+            'zabbix_item_key': 'application.status',
             'monitoring_item_name': 'application_state',
             'after_creation_update': True,
             'after_creation_update_terminate_values': ['1'],

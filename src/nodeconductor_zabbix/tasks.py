@@ -142,19 +142,19 @@ def update_monitoring_items():
     for host in hosts:
         for config in host.MONITORING_ITEMS_CONFIGS:
             update_host_scope_monitoring_items.delay(host.uuid.hex,
-                                                     zabbix_item_name=config['zabbix_item_name'],
+                                                     zabbix_item_key=config['zabbix_item_key'],
                                                      monitoring_item_name=config['monitoring_item_name'])
     logger.info('Successfully scheduled monitoring data update for zabbix hosts.')
 
 
 @shared_task
-def update_host_scope_monitoring_items(host_uuid, zabbix_item_name, monitoring_item_name):
+def update_host_scope_monitoring_items(host_uuid, zabbix_item_key, monitoring_item_name):
     host = Host.objects.get(uuid=host_uuid)
     if host.scope is None:
         return None
     value = None
-    if Item.objects.filter(template__hosts=host, name=zabbix_item_name).exists():
-        value = host.get_backend().get_item_last_value(host.backend_id, key=zabbix_item_name)
+    if Item.objects.filter(template__hosts=host, key=zabbix_item_key).exists():
+        value = host.get_backend().get_item_last_value(host.backend_id, key=zabbix_item_key)
         ResourceItem.objects.update_or_create(
             object_id=host.scope.id,
             content_type=ContentType.objects.get_for_model(host.scope),
@@ -173,7 +173,7 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_name, monitoring_i
 @retry_if_false
 def after_creation_monitoring_item_update(host_uuid, config):
     item_value = update_host_scope_monitoring_items(
-        host_uuid, config['zabbix_item_name'], config['monitoring_item_name'])
+        host_uuid, config['zabbix_item_key'], config['monitoring_item_name'])
     return item_value in config.get('after_creation_update_terminate_values', []) or item_value is None
 
 
