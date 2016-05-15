@@ -54,7 +54,7 @@ def pull_sla(host_uuid):
         end_time = datetime_to_timestamp(min(max_dt, current_point))
         update_itservice_sla.delay(itservice.pk, period, start_time, end_time)
 
-    logger.info('Successfully pulled SLA for host with with UUID %s', host_uuid)
+    logger.debug('Successfully pulled SLA for host with with UUID %s', host_uuid)
 
 
 @shared_task(name='nodeconductor.zabbix.update_sla')
@@ -130,7 +130,7 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
     except ZabbixBackendError as e:
         logger.warning(
             'Unable to update SLA for IT Service %s (ID: %s). Reason: %s', itservice.name, itservice.backend_id, e)
-    logger.info('Successfully updated SLA for IT Service %s (ID: %s)', itservice.name, itservice.backend_id)
+    logger.debug('Successfully updated SLA for IT Service %s (ID: %s)', itservice.name, itservice.backend_id)
 
 
 @shared_task(name='nodeconductor.zabbix.update_monitoring_items')
@@ -144,7 +144,7 @@ def update_monitoring_items():
             update_host_scope_monitoring_items.delay(host.uuid.hex,
                                                      zabbix_item_key=config['zabbix_item_key'],
                                                      monitoring_item_name=config['monitoring_item_name'])
-    logger.info('Successfully scheduled monitoring data update for zabbix hosts.')
+    logger.debug('Successfully scheduled monitoring data update for zabbix hosts.')
 
 
 @shared_task
@@ -161,10 +161,10 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_key, monitoring_it
             name=monitoring_item_name,
             defaults={'value': value}
         )
-        logger.info('Successfully updated monitoring item %s for host %s (%s). Current value: %s.',
+        logger.debug('Successfully updated monitoring item %s for host %s (%s). Current value: %s.',
                     monitoring_item_name, host.visible_name, host.uuid.hex, value)
     else:
-        logger.info('Host %s (UUID: %s) does not have monitoring item %s.',
+        logger.debug('Host %s (UUID: %s) does not have monitoring item %s.',
                     host.visible_name, host.uuid.hex, monitoring_item_name)
     return value
 
