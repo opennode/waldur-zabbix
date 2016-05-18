@@ -182,7 +182,7 @@ class SMSTask(Task):
 
     def execute(self, settings, message, phone):
         options = settings.options or {}
-        nc_settings = getattr(django_settings, 'NODECONDUCTOR_ZABBIX_SMS_SETTINGS')
+        nc_settings = getattr(django_settings, 'NODECONDUCTOR_ZABBIX', {}).get('SMS_SETTINGS', {})
 
         sender = options.get('sms_email_from') or nc_settings.get('SMS_EMAIL_FROM')
         recipient = options.get('sms_email_rcpt') or nc_settings.get('SMS_EMAIL_RCPT')

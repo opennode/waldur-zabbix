@@ -4,10 +4,12 @@ from nodeconductor.core import NodeConductorExtension
 class ZabbixExtension(NodeConductorExtension):
 
     class Settings:
-        NODECONDUCTOR_ZABBIX_SMS_SETTINGS = {
-            # configurations for default SMS notifications.
-            'SMS_EMAIL_FROM': None,
-            'SMS_EMAIL_RCPT': None,
+        NODECONDUCTOR_ZABBIX = {
+            'SMS_SETTINGS': {
+                # configurations for default SMS notifications.
+                'SMS_EMAIL_FROM': None,
+                'SMS_EMAIL_RCPT': None,
+            },
         }
 
     @staticmethod
