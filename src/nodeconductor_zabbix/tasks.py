@@ -4,7 +4,6 @@ import logging
 
 from celery import shared_task
 from dateutil.relativedelta import relativedelta
-from django.conf import settings as django_settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.mail import send_mail
 
@@ -162,10 +161,10 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_key, monitoring_it
             defaults={'value': value}
         )
         logger.debug('Successfully updated monitoring item %s for host %s (%s). Current value: %s.',
-                    monitoring_item_name, host.visible_name, host.uuid.hex, value)
+                     monitoring_item_name, host.visible_name, host.uuid.hex, value)
     else:
         logger.debug('Host %s (UUID: %s) does not have monitoring item %s.',
-                    host.visible_name, host.uuid.hex, monitoring_item_name)
+                     host.visible_name, host.uuid.hex, monitoring_item_name)
     return value
 
 
@@ -181,11 +180,8 @@ class SMSTask(Task):
     """ Send SMS to given mobile number based on service settings or django settings """
 
     def execute(self, settings, message, phone):
-        options = settings.options or {}
-        nc_settings = getattr(django_settings, 'NODECONDUCTOR_ZABBIX', {}).get('SMS_SETTINGS', {})
-
-        sender = options.get('sms_email_from') or nc_settings.get('SMS_EMAIL_FROM')
-        recipient = options.get('sms_email_rcpt') or nc_settings.get('SMS_EMAIL_RCPT')
+        sender = settings.get_option('sms_email_from')
+        recipient = settings.get_option('sms_email_rcpt')
 
         if sender and recipient and '{phone}' in recipient:
             send_mail('', message, sender, [recipient.format(phone=phone)], fail_silently=True)

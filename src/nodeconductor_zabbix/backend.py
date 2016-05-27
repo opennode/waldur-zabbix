@@ -1,13 +1,15 @@
-from datetime import date, timedelta
-from decimal import Decimal
-import logging
 import sys
-import warnings
-
-from django.db import connections, DatabaseError
-from django.utils import six, timezone
+import logging
 import pyzabbix
 import requests
+import warnings
+
+from datetime import date, timedelta
+from decimal import Decimal
+
+from django.conf import settings as django_settings
+from django.db import connections, DatabaseError
+from django.utils import six, timezone
 from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
 
@@ -18,6 +20,7 @@ from . import models
 
 
 logger = logging.getLogger(__name__)
+sms_settings = getattr(django_settings, 'NODECONDUCTOR_ZABBIX', {}).get('SMS_SETTINGS', {})
 
 
 class ZabbixLogsFilter(logging.Filter):
@@ -52,23 +55,26 @@ class QuietSession(requests.Session):
 
 class ZabbixBackend(ServiceBackend):
 
-    DEFAULT_HOST_GROUP_NAME = 'nodeconductor'
-    DEFAULT_TEMPLATES_NAMES = []
-    DEFAULT_INTERFACE_PARAMETERS = {
-        'dns': '',
-        'ip': '0.0.0.0',
-        'main': 1,
-        'port': '10050',
-        'type': 1,
-        'useip': 1
-    }
-
-    DEFAULT_DATABASE_PARAMETERS = {
-        'host': 'localhost',
-        'port': '3306',
-        'name': 'zabbix',
-        'user': 'admin',
-        'password': ''
+    DEFAULTS = {
+        'host_group_name': 'nodeconductor',
+        'templates_names': [],
+        'database_parameters': {
+            'host': 'localhost',
+            'port': '3306',
+            'name': 'zabbix',
+            'user': 'admin',
+            'password': '',
+        },
+        'interface_parameters': {
+            'dns': '',
+            'ip': '0.0.0.0',
+            'main': 1,
+            'port': '10050',
+            'type': 1,
+            'useip': 1,
+        },
+        'sms_email_from': sms_settings.get('SMS_EMAIL_FROM'),
+        'sms_email_rcpt': sms_settings.get('SMS_EMAIL_RCPT'),
     }
 
     TREND_DELAY_SECONDS = 60 * 60  # One hour
@@ -76,11 +82,10 @@ class ZabbixBackend(ServiceBackend):
 
     def __init__(self, settings):
         self.settings = settings
-        self.options = settings.options or {}
-        self.host_group_name = self.options.get('host_group_name', self.DEFAULT_HOST_GROUP_NAME)
-        self.templates_names = self.options.get('templates_names', self.DEFAULT_TEMPLATES_NAMES)
-        self.interface_parameters = self.options.get('interface_parameters', self.DEFAULT_INTERFACE_PARAMETERS)
-        self.database_parameters = self.options.get('database_parameters', self.DEFAULT_DATABASE_PARAMETERS)
+        self.host_group_name = settings.get_option('host_group_name')
+        self.templates_names = settings.get_option('templates_names')
+        self.interface_parameters = settings.get_option('interface_parameters')
+        self.database_parameters = settings.get_option('database_parameters')
 
     @property
     def api(self):
