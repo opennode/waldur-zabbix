@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from nodeconductor.core.fields import JsonField, MappedChoiceField
+from nodeconductor.core.fields import MappedChoiceField
 from nodeconductor.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
                                             AugmentedSerializerMixin)
 from nodeconductor.core.utils import datetime_to_timestamp, pwgen
@@ -22,41 +22,16 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
         'password': 'Zabbix user password (e.g. zabbix)',
     }
     SERVICE_ACCOUNT_EXTRA_FIELDS = {
-        'host_group_name': 'Zabbix host group name for registered hosts. (default: "nodeconductor")',
-        'interface_parameters': 'Default parameters for hosts interface (will be used if interface is not specified in '
-                                'host). (default: {"dns": "", "ip": "0.0.0.0", "main": 1, "port": "10050", "type": 1, '
-                                '"useip": 1})',
-        'templates_names': 'List of Zabbix hosts templates. (default: ["NodeConductor"])',
-        'database_parameters': 'Zabbix database parameters. (default: {"host": "localhost", "port": "3306", '
-                               '"name": "zabbix", "user": "admin", "password": ""})'
+        'host_group_name': 'Zabbix host group name for registered hosts',
+        'templates_names': 'List of Zabbix hosts templates',
+        'database_parameters': 'Zabbix database parameters',
+        'interface_parameters': 'Default parameters for hosts interface (will be used if interface is not specified)',
     }
 
     class Meta(structure_serializers.BaseServiceSerializer.Meta):
         model = models.ZabbixService
         view_name = 'zabbix-detail'
-
-    def get_fields(self):
-        fields = super(ServiceSerializer, self).get_fields()
-        fields['host_group_name'].default = backend.ZabbixBackend.DEFAULT_HOST_GROUP_NAME
-        fields['templates_names'] = JsonField(
-            default=backend.ZabbixBackend.DEFAULT_TEMPLATES_NAMES,
-            help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['templates_names'],
-            write_only=True,
-        )
-        fields['interface_parameters'] = JsonField(
-            default=backend.ZabbixBackend.DEFAULT_INTERFACE_PARAMETERS,
-            help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['interface_parameters'],
-            write_only=True,
-        )
-        fields['database_parameters'] = JsonField(
-            default=backend.ZabbixBackend.DEFAULT_DATABASE_PARAMETERS,
-            help_text=self.SERVICE_ACCOUNT_EXTRA_FIELDS['database_parameters'],
-            write_only=True,
-        )
-        fields['backend_url'].required = True
-        fields['username'].required = True
-        fields['password'].required = True
-        return fields
+        required_fields = 'backend_url', 'username', 'password'
 
 
 class ServiceProjectLinkSerializer(structure_serializers.BaseServiceProjectLinkSerializer):
@@ -153,11 +128,9 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
             host = super(HostSerializer, self).create(validated_data)
             # get default templates from service settings if they are not defined
             if templates is None:
-                templates_names = host.service_project_link.service.settings.options.get(
-                    'templates_names', backend.ZabbixBackend.DEFAULT_TEMPLATES_NAMES)
                 templates = models.Template.objects.filter(
                     settings=host.service_project_link.service.settings,
-                    name__in=templates_names
+                    name__in=host.service_project_link.service.settings.get_option('templates_names'),
                 )
             for template in templates:
                 host.templates.add(template)
