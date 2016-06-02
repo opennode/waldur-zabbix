@@ -82,10 +82,22 @@ class ZabbixBackend(ServiceBackend):
 
     def __init__(self, settings):
         self.settings = settings
-        self.host_group_name = settings.get_option('host_group_name')
-        self.templates_names = settings.get_option('templates_names')
-        self.interface_parameters = settings.get_option('interface_parameters')
-        self.database_parameters = settings.get_option('database_parameters')
+
+    @property
+    def host_group_name(self):
+        return self.settings.get_option('host_group_name')
+
+    @property
+    def templates_names(self):
+        return self.settings.get_option('templates_names')
+
+    @property
+    def interface_parameters(self):
+        return self.settings.get_option('interface_parameters')
+
+    @property
+    def database_parameters(self):
+        return self.settings.get_option('database_parameters')
 
     @property
     def api(self):
