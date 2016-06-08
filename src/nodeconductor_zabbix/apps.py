@@ -23,7 +23,7 @@ class ZabbixConfig(AppConfig):
         TemplateRegistry.register(template.ZabbixServiceCreationTemplateForm)
 
         from . import handlers
-        for index, resource_model in enumerate(structure_models.Resource.get_all_models()):
+        for index, resource_model in enumerate(structure_models.ResourceMixin.get_all_models()):
 
             fsm_signals.post_transition.connect(
                 handlers.delete_hosts_on_scope_deletion,
