@@ -84,7 +84,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
     # visible name could be populated from scope, so we need to mark it as not required
     visible_name = serializers.CharField(required=False)
-    scope = GenericRelatedField(related_models=structure_models.Resource.get_all_models(), required=False)
+    scope = GenericRelatedField(related_models=structure_models.ResourceMixin.get_all_models(), required=False)
     templates = NestedTemplateSerializer(
         queryset=models.Template.objects.all().prefetch_related('items'), many=True, required=False)
     status = MappedChoiceField(
