@@ -23,3 +23,8 @@ def delete_hosts_on_scope_deletion(sender, instance, name, source, target, **kwa
             host.set_erred()
             host.save()
             executors.HostDeleteExecutor.execute(host, force=True)
+
+
+def refresh_database_connection(sender, instance, created=False, **kwargs):
+    if not created and instance.type == 'Zabbix' and instance.tracker.has_changed('options'):
+        instance.get_backend()._get_db_connection(force=True)
