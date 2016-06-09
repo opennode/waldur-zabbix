@@ -753,7 +753,7 @@ class ZabbixBackend(ServiceBackend):
         query = query % parameters
         return self._execute_query(query)
 
-    def _get_db_connection(self):
+    def _get_db_connection(self, force=False):
         host = self.database_parameters['host']
         port = self.database_parameters['port']
         name = self.database_parameters['name']
@@ -761,7 +761,7 @@ class ZabbixBackend(ServiceBackend):
         password = self.database_parameters['password']
 
         key = '/'.join([name, host, port])
-        if key not in connections.databases:
+        if key not in connections.databases or force:
             connections.databases[key] = {
                 'ENGINE': 'django.db.backends.mysql',
                 'NAME': name,

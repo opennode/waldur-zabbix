@@ -11,7 +11,7 @@ from nodeconductor.core.utils import datetime_to_timestamp, pwgen
 from nodeconductor.monitoring.utils import get_period
 from nodeconductor.structure import serializers as structure_serializers, models as structure_models
 
-from . import models, backend, apps
+from . import models, apps
 
 
 class ServiceSerializer(structure_serializers.BaseServiceSerializer):
