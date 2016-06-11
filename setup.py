@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 from setuptools import setup, find_packages
 
 
@@ -6,19 +7,27 @@ dev_requires = [
     'Sphinx==1.2.2',
 ]
 
+tests_require = [
+    'factory_boy==2.4.1',
+    'django-celery==3.1.16',
+    'mock==1.0.1',
+    'mock-django==0.6.6',
+    'six>=1.9.0',
+]
+
 install_requires = [
-    'nodeconductor>0.81.0',
+    'nodeconductor>0.95.0',
     'pyzabbix>=0.7.2',
 ]
 
 
 setup(
     name='nodeconductor-zabbix',
-    version='0.2.1',
+    version='0.3.0',
     author='OpenNode Team',
     author_email='info@opennodecloud.com',
     url='http://nodeconductor.com',
-    description='NodeConductor Zabbix adds Zabbix monitoring support to NodeConductor',
+    description='NodeConductor Zabbix adds support for Zabbix monitoring server management',
     long_description=open('README.rst').read(),
     package_dir={'': 'src'},
     packages=find_packages('src', exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
