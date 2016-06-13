@@ -677,14 +677,14 @@ class ZabbixBackend(ServiceBackend):
         if int_items:
             cursor = self._get_aggregated_values(
                 item_keys=[item.key for item in int_items],
-                table='history',
+                table='history_uint',
                 **default_kwargs
             )
             db_data += cursor.fetchall()
         if float_items:
             cursor = self._get_aggregated_values(
                 item_keys=[item.key for item in float_items],
-                table='history_uint',
+                table='history',
                 **default_kwargs
             )
             db_data += cursor.fetchall()
@@ -734,7 +734,7 @@ class ZabbixBackend(ServiceBackend):
         query = (
             'SELECT items.key_, %(method)s(value) '
             'FROM hosts, items, %(table)s history '
-            'WHERE items.hostid = %(hostid)s '
+            'WHERE items.hostid = %(hostid)s AND hosts.hostid = %(hostid)s AND history.itemid = items.itemid '
             'AND items.key_ IN (%(item_keys)s) '
             'AND clock >= %(start_timestamp)s '
             'AND clock <= %(end_timestamp)s '
