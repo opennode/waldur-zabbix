@@ -39,4 +39,8 @@ class ZabbixExtension(NodeConductorExtension):
                 'task': 'nodeconductor.zabbix.update_monitoring_items',
                 'schedule': timedelta(minutes=10),
             },
+            'pull-zabbix-hosts': {
+                'task': 'nodeconductor.zabbix.pull_hosts',
+                'schedule': timedelta(minutes=30),
+            },
         }

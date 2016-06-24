@@ -53,6 +53,23 @@ class QuietSession(requests.Session):
             return super(QuietSession, self).request(*args, **kwargs)
 
 
+# XXX: This method is copy-pasted from openstack.backend it should be moved to
+#      core when we will provide final structure for import process.
+def _update_pulled_fields(instance, imported_instance, fields):
+    """ Update instance fields based on imported from backend data.
+
+        Save changes to DB only one or more fields were changed.
+    """
+    modified = False
+    for field in fields:
+        pulled_value = getattr(imported_instance, field)
+        if getattr(instance, field) != pulled_value:
+            setattr(instance, field, pulled_value)
+            modified = True
+    if modified:
+        instance.save()
+
+
 class ZabbixBackend(ServiceBackend):
 
     DEFAULTS = {
@@ -781,3 +798,53 @@ class ZabbixBackend(ServiceBackend):
         except DatabaseError as e:
             logger.exception('Can not execute query the Zabbix DB.')
             six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
+
+    def import_host(self, host_backend_id, service_project_link=None, save=True):
+        if save and not service_project_link:
+            raise AttributeError('Cannot save imported host if SPL is not defined.')
+        try:
+            backend_host = self.api.host.get(
+                filter={'hostid': host_backend_id}, selectGroups=True,
+                output=['host', 'name', 'description', 'error', 'status', 'groups'])[0]
+        except IndexError:
+            raise ZabbixBackendError('Host with id %s does not exist at backend')
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
+
+        host = models.Host()
+        host.name = backend_host['host']
+        host.visible_name = backend_host['name']
+        host.description = backend_host['description']
+        host.error = backend_host['error']
+        host.status = backend_host['status']
+        host.backend_id = host_backend_id
+        if backend_host.get('groups'):
+            host.host_group_name = backend_host['groups'][0]
+        else:
+            host.host_group_name = ''
+
+        if save:
+            host.service_project_link = service_project_link
+            host.save()
+            templates = self.get_host_templates(host)
+            host.templates.add(*templates)
+        return host
+
+    def get_host_templates(self, host):
+        backend_templates = self.api.template.get(hostids=[host.backend_id], output=['templateid'])
+        return models.Template.objects.filter(backend_id__in=[t['templateid'] for t in backend_templates])
+
+    @log_backend_action()
+    def pull_host(self, host):
+        import_time = timezone.now()
+        imported_host = self.import_host(host.backend_id, save=False)
+        imported_host_templates = set(self.get_host_templates(host))
+
+        host.refresh_from_db()
+        if host.modified < import_time:
+            update_fields = ('name', 'visible_name', 'description', 'error', 'status', 'host_group_name')
+            _update_pulled_fields(host, imported_host, update_fields)
+
+        host_templates = set(host.templates.all())
+        host.templates.remove(*(host_templates - imported_host_templates))
+        host.templates.add(*(imported_host_templates - host_templates))
