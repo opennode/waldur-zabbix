@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.conf import settings as django_settings
-from django.db import connections, DatabaseError
+from django.db import connections, DatabaseError, transaction
 from django.utils import six, timezone
 from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
@@ -824,14 +824,18 @@ class ZabbixBackend(ServiceBackend):
             host.host_group_name = ''
 
         if save:
-            host.service_project_link = service_project_link
-            host.save()
             templates = self.get_host_templates(host)
-            host.templates.add(*templates)
+            with transaction.atomic():
+                host.service_project_link = service_project_link
+                host.save()
+                host.templates.add(*templates)
         return host
 
     def get_host_templates(self, host):
-        backend_templates = self.api.template.get(hostids=[host.backend_id], output=['templateid'])
+        try:
+            backend_templates = self.api.template.get(hostids=[host.backend_id], output=['templateid'])
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
         return models.Template.objects.filter(backend_id__in=[t['templateid'] for t in backend_templates])
 
     @log_backend_action()
