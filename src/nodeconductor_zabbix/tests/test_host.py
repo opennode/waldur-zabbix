@@ -1,0 +1,75 @@
+import mock
+
+from django.test import TestCase
+from rest_framework import status, test
+
+from nodeconductor.structure.models import ServiceSettings
+from nodeconductor.structure.tests import factories as structure_factories
+
+from . import factories
+from .. import models
+from ..apps import ZabbixConfig
+
+
+class HostApiCreateTest(test.APITransactionTestCase):
+    def setUp(self):
+        self.staff = structure_factories.UserFactory(is_staff=True)
+        self.client.force_authenticate(self.staff)
+        self.spl = factories.ZabbixServiceProjectLinkFactory()
+
+    def test_visible_name_populated_from_scope(self):
+        vm = structure_factories.TestInstanceFactory()
+
+        response = self.client.post(factories.HostFactory.get_list_url(), {
+            'service_project_link': factories.ZabbixServiceProjectLinkFactory.get_url(self.spl),
+            'name': 'Valid host name',
+            'scope': structure_factories.TestInstanceFactory.get_url(vm)
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['visible_name'], models.Host.get_visible_name_from_scope(vm))
+
+    def test_visible_name_should_be_unique(self):
+        factories.HostFactory(service_project_link=self.spl, visible_name='Unique visible host name')
+        response = self.client.post(factories.HostFactory.get_list_url(), {
+            'service_project_link': factories.ZabbixServiceProjectLinkFactory.get_url(self.spl),
+            'name': 'Valid host name',
+            'visible_name': 'Unique visible host name'
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class HostCreateBackendTest(TestCase):
+    def setUp(self):
+        self.patcher = mock.patch('pyzabbix.ZabbixAPI')
+        self.mocked_api = self.patcher.start()
+        settings = ServiceSettings(
+            type=ZabbixConfig.service_name,
+            backend_url='http://example.com',
+            username='admin',
+            password='admin'
+        )
+        self.backend = settings.get_backend()
+
+    def tearDown(self):
+        self.patcher.stop()
+
+    def test_if_host_exists_its_backend_id_is_updated(self):
+        host = factories.HostFactory()
+
+        self.mocked_api().host.get.return_value = [{'hostid': 100}]
+        self.backend.create_host(host)
+        self.mocked_api().host.get.assert_called_once_with(filter={'host': host.name}, output='hostid')
+
+        host.refresh_from_db()
+        self.assertEqual(host.backend_id, str(100))
+
+    def test_if_host_does_not_exist_it_is_created(self):
+        host = factories.HostFactory()
+
+        self.mocked_api().host.get.return_value = []
+        self.mocked_api().host.create.return_value = {'hostids': [200]}
+        self.backend.create_host(host)
+        self.assertTrue(self.mocked_api().host.create.called)
+
+        host.refresh_from_db()
+        self.assertEqual(host.backend_id, str(200))

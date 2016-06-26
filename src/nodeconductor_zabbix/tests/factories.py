@@ -55,10 +55,14 @@ class HostFactory(factory.DjangoModelFactory):
     backend_id = factory.Sequence(lambda n: 'host-id%s' % n)
 
     @classmethod
+    def get_list_url(cls):
+        return 'http://testserver' + reverse('zabbix-host-list')
+
+    @classmethod
     def get_url(cls, host=None, action=None):
         if host is None:
             host = HostFactory()
-        url = 'http://testserver' + reverse('zabbix-host-detail', kwargs={'uuid': host.uuid})
+        url = 'http://testserver' + reverse('zabbix-host-detail', kwargs={'uuid': host.uuid.hex})
         return url if action is None else url + action + '/'
 
 
