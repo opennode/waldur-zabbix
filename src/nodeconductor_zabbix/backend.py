@@ -153,17 +153,14 @@ class ZabbixBackend(ServiceBackend):
         templates_ids = [t.backend_id for t in host.templates.all()]
         group_id, _ = self._get_or_create_group_id(host_group_name)
 
-        try:
-            zabbix_host_id, created = self._get_or_create_host_id(
-                host_name=host.name,
-                visible_name=host.visible_name,
-                group_id=group_id,
-                templates_ids=templates_ids,
-                interface_parameters=interface_parameters,
-                status=host.status,
-            )
-        except (pyzabbix.ZabbixAPIException, RequestException) as e:
-            six.reraise(ZabbixBackendError, e)
+        zabbix_host_id, created = self._get_or_create_host_id(
+            host_name=host.name,
+            visible_name=host.visible_name,
+            group_id=group_id,
+            templates_ids=templates_ids,
+            interface_parameters=interface_parameters,
+            status=host.status,
+        )
 
         if not created:
             logger.warning('Host with name "%s" already exists', host.name)
@@ -511,27 +508,42 @@ class ZabbixBackend(ServiceBackend):
     def _get_or_create_host_id(self, host_name, visible_name, group_id, templates_ids, interface_parameters, status):
         """ Create Zabbix host with given parameters.
 
-        Return (<host>, <is_created>) tuple as result.
+        Return (<host_id>, <is_created>) tuple as result.
         """
+        host_id = self._get_host_id(host_name)
+        if host_id:
+            return host_id, False
+        host_id = self._create_host(host_name, visible_name, group_id, templates_ids,
+                                    interface_parameters, status)
+        return host_id, True
+
+    def _get_host_id(self, host_name):
         try:
-            if not self.api.host.get(filter={'host': host_name}):
-                templates = [{'templateid': template_id} for template_id in templates_ids]
-                host_parameters = {
-                    "host": host_name,
-                    "name": visible_name,
-                    "interfaces": [interface_parameters],
-                    "groups": [{"groupid": group_id}],
-                    "templates": templates,
-                    "status": status,
-                }
-                host = self.api.host.create(host_parameters)['hostids'][0]
-                return host, True
-            else:
-                host = self.api.host.get(filter={'host': host_name})[0]['hostid']
-                return host, False
-        except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
-            raise ZabbixBackendError(
-                'Cannot get or create host with parameters: %s. Exception: %s' % (host_parameters, str(e)))
+            host = self.api.host.get(filter={'host': host_name}, output='hostid')
+            # If host with given name does not exist, empty list is returned
+            if host:
+                return host[0]['hostid']
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            logger.error('Cannot get host id by name: %s. Exception: %s', host_name, six.text_type(e))
+            six.reraise(ZabbixBackendError, e)
+
+    def _create_host(self, host_name, visible_name, group_id, templates_ids, interface_parameters, status):
+        host_parameters = {
+            "host": host_name,
+            "name": visible_name,
+            "interfaces": [interface_parameters],
+            "groups": [{"groupid": group_id}],
+            "templates": [{'templateid': template_id} for template_id in templates_ids],
+            "status": status,
+        }
+
+        try:
+            host = self.api.host.create(host_parameters)
+            return host['hostids'][0]
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            logger.error('Cannot create host with parameters: %s. Exception: %s',
+                         host_parameters, six.text_type(e))
+            six.reraise(ZabbixBackendError, e)
 
     def _get_showsla(self, algorithm):
         if algorithm == models.ITService.Algorithm.ANY:

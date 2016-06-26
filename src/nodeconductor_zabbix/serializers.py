@@ -83,7 +83,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         queryset=models.ZabbixServiceProjectLink.objects.all())
 
     # visible name could be populated from scope, so we need to mark it as not required
-    visible_name = serializers.CharField(required=False)
+    visible_name = serializers.CharField(required=False, max_length=models.Host.VISIBLE_NAME_MAX_LENGTH)
     scope = GenericRelatedField(related_models=structure_models.ResourceMixin.get_all_models(), required=False)
     templates = NestedTemplateSerializer(
         queryset=models.Template.objects.all().prefetch_related('items'), many=True, required=False)
@@ -101,23 +101,32 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         read_only_fields = structure_serializers.BaseResourceSerializer.Meta.read_only_fields + (
             'error',)
         protected_fields = structure_serializers.BaseResourceSerializer.Meta.protected_fields + (
-            'interface_parameters', )
+            'interface_parameters', 'visible_name')
 
     def get_resource_fields(self):
         return super(HostSerializer, self).get_resource_fields() + ['scope']
 
     def validate(self, attrs):
-        # initiate name and visible name from scope if it is defined and check that they are not empty
-        if 'scope' in attrs:
-            attrs['visible_name'] = models.Host.get_visible_name_from_scope(attrs['scope'])
-        if not attrs.get('visible_name') and self.instance is None:
-            raise serializers.ValidationError('Visible name or scope should be defined.')
         # model validation
         if self.instance is not None:
             for name, value in attrs.items():
                 setattr(self.instance, name, value)
             self.instance.clean()
         else:
+            if not attrs.get('visible_name'):
+                if 'scope' not in attrs:
+                    raise serializers.ValidationError('Visible name or scope should be defined.')
+
+                # initiate name and visible name from scope if it is defined
+                attrs['visible_name'] = models.Host.get_visible_name_from_scope(attrs['scope'])
+
+            spl = attrs['service_project_link']
+            if models.Host.objects.filter(
+                service_project_link__service__settings=spl.service.settings,
+                visible_name=attrs['visible_name']
+            ).exists():
+                raise serializers.ValidationError({'visible_name': 'Visible name should be unique.'})
+
             instance = models.Host(**{k: v for k, v in attrs.items() if k != 'templates'})
             instance.clean()
         return attrs
