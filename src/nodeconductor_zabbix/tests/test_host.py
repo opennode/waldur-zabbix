@@ -5,13 +5,13 @@ import pyzabbix
 from requests import RequestException
 from rest_framework import status, test
 
+from nodeconductor.structure import ServiceBackendError
 from nodeconductor.structure.models import ServiceSettings
 from nodeconductor.structure.tests import factories as structure_factories
 
 from . import factories
 from .. import models
 from ..apps import ZabbixConfig
-from ..backend import ZabbixBackendError
 
 
 class HostApiCreateTest(test.APITransactionTestCase):
@@ -80,7 +80,7 @@ class HostCreateBackendTest(TestCase):
     def test_request_exception_is_wrapped(self):
         host = factories.HostFactory()
         self.mocked_api().host.get.side_effect = RequestException()
-        self.assertRaises(ZabbixBackendError, self.backend.create_host, host)
+        self.assertRaises(ServiceBackendError, self.backend.create_host, host)
 
         self.mocked_api().host.get.side_effect = pyzabbix.ZabbixAPIException()
-        self.assertRaises(ZabbixBackendError, self.backend.create_host, host)
+        self.assertRaises(ServiceBackendError, self.backend.create_host, host)
