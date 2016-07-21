@@ -144,6 +144,11 @@ class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
         (in the same order as it has been provided in request) and then by time.
         """
         items = self._get_items(request, hosts)
+        numeric_types = (models.Item.ValueTypes.FLOAT, models.Item.ValueTypes.INTEGER)
+        non_numeric_items = [item.name for item in items if item.value_type not in numeric_types]
+        if non_numeric_items:
+            raise exceptions.ValidationError(
+                'Cannot show historical data for non-numeric items: %s' % ', '.join(non_numeric_items))
         points = self._get_points(request)
 
         stats = []
@@ -252,6 +257,7 @@ class UserViewSet(structure_views.BaseServicePropertyViewSet, StateExecutorViewS
 
 # XXX: This view and all related to itacloud assembly.
 class AdvanceMonitoringViewSet(viewsets.ReadOnlyModelViewSet):
+    """ TODO: Add endpoint description """
     queryset = models.ZabbixService.objects.all()
     serializer_class = serializers.AdvanceMonitoringSerializer
     permission_classes = (rf_permissions.IsAuthenticated, rf_permissions.DjangoObjectPermissions)
