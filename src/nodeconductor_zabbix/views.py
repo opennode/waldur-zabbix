@@ -257,7 +257,11 @@ class UserViewSet(structure_views.BaseServicePropertyViewSet, StateExecutorViewS
 
 # XXX: This view and all related to itacloud assembly.
 class AdvanceMonitoringViewSet(viewsets.ReadOnlyModelViewSet):
-    """ TODO: Add endpoint description """
+    """ Show all Zabbix services that are available as advance monitoring for given instance.
+
+        Endpoint supports only GET request with parameter:
+         - instance - URL of OpenStack instance (required).
+    """
     queryset = models.ZabbixService.objects.all()
     serializer_class = serializers.AdvanceMonitoringSerializer
     permission_classes = (rf_permissions.IsAuthenticated, rf_permissions.DjangoObjectPermissions)
