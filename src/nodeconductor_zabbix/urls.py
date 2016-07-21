@@ -10,3 +10,4 @@ def register_in(router):
     router.register(r'zabbix-triggers', views.TriggerViewSet, base_name='zabbix-trigger')
     router.register(r'zabbix-user-groups', views.UserGroupViewSet, base_name='zabbix-user-group')
     router.register(r'zabbix-users', views.UserViewSet, base_name='zabbix-user')
+    router.register(r'advance-monitoring', views.AdvanceMonitoringViewSet, base_name='advance-monitoring')

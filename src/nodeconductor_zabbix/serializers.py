@@ -31,7 +31,36 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
     class Meta(structure_serializers.BaseServiceSerializer.Meta):
         model = models.ZabbixService
         view_name = 'zabbix-detail'
-        required_fields = 'backend_url', 'username', 'password'
+        required_fields = ('backend_url', 'username', 'password')
+
+
+# XXX: This should be moved to itacloud assembly
+class AdvanceMonitoringSerializer(serializers.HyperlinkedModelSerializer):
+    """ Serialize services that are available as advance monitoring.
+
+        Expects "instance" in context.
+    """
+    is_enabled = serializers.SerializerMethodField()
+    state = serializers.SerializerMethodField()
+
+    class Meta(object):
+        model = models.ZabbixService
+        fields = ('url', 'name', 'state', 'is_enabled')
+        extra_kwargs = {
+            'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-detail'},
+        }
+
+    def get_state(self, service):
+        return service.settings.get_state_display()
+
+    def get_instance(self):
+        return self.context['instance']
+
+    def get_is_enabled(self, service):
+        """ Advance monitoring is enabled for instance if it has host that is
+            connected to given instance.
+        """
+        return models.Host.objects.filter(scope=self.get_instance(), service_project_link__service=service).exists()
 
 
 class ServiceProjectLinkSerializer(structure_serializers.BaseServiceProjectLinkSerializer):
