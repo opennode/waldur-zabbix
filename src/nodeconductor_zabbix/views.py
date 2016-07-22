@@ -23,6 +23,27 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
     queryset = models.ZabbixService.objects.all()
     serializer_class = serializers.ServiceSerializer
 
+    def get_serializer_class(self):
+        if self.action == 'credentials':
+            return serializers.UserSerializer
+        return super(ZabbixServiceViewSet, self).get_serializer_class()
+
+    @detail_route(methods=['GET', 'POST'])
+    def credentials(self, request, uuid):
+        """ On GET request - return superadmin user data.
+            On POST - reset superuser password and return new one.
+        """
+        service = self.get_object()
+        if request.method == 'GET':
+            user = models.User.objects.get(settings=service.settings, alias=service.settings.username)
+            serializer_class = self.get_serializer_class()
+            serializer = serializer_class(user, context=self.get_serializer_context())
+            return Response(serializer.data)
+        else:
+            password = pwgen()
+            executors.ServiceSettingsPasswordResetExecutor.execute(service.settings, password=password)
+            return Response({'password': password})
+
 
 class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkViewSet):
     queryset = models.ZabbixServiceProjectLink.objects.all()

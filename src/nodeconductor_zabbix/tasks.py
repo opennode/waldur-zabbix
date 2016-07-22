@@ -205,3 +205,11 @@ def pull_hosts():
             args=(serialized_host, 'pull_host'),
             link_error=core_tasks.ErrorStateTransitionTask().s(serialized_host)
         )
+
+
+class UpdateSettingsCredentials(core_tasks.Task):
+
+    def execute(self, service_settings, serialized_user):
+        user = core_utils.deserialize_instance(serialized_user)
+        service_settings.password = user.password
+        service_settings.save()
