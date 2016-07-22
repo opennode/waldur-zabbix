@@ -92,7 +92,7 @@ class UserDeleteExecutor(executors.DeleteExecutor):
 
 
 class ServiceSettingsPasswordResetExecutor(executors.ActionExecutor):
-    """ Reset superadmin user password and update service settings options. """
+    """ Reset user password and update service settings options. """
 
     @classmethod
     def get_task_signature(cls, service_settings, serialized_service_settings, **kwargs):
