@@ -101,9 +101,13 @@ class ServiceSettingsPasswordResetExecutor(executors.ActionExecutor):
         user.schedule_updating()
         user.save()
         serialized_user = utils.serialize_instance(user)
-        return chain(
+        _tasks = [
             tasks.StateTransitionTask().si(serialized_service_settings, state_transition='begin_updating'),
             tasks.BackendMethodTask().si(serialized_user, 'update_user', state_transition='begin_updating'),
             UpdateSettingsCredentials().si(serialized_service_settings, serialized_user),
             tasks.StateTransitionTask().si(serialized_user, state_transition='set_ok'),
-        )
+        ]
+        if user.phone:
+            message = 'Zabbix "%s" password: %s' % (user.settings.name, user.password)
+            _tasks.append(SMSTask().si(serialized_service_settings, message, user.phone))
+        return chain(*_tasks)
