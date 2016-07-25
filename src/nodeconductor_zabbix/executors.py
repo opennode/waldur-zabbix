@@ -2,7 +2,8 @@ from celery import chain
 
 from nodeconductor.core import executors, tasks, utils
 
-from .tasks import SMSTask
+from . import models
+from .tasks import SMSTask, UpdateSettingsCredentials
 
 
 class HostCreateExecutor(executors.CreateExecutor):
@@ -88,3 +89,21 @@ class UserDeleteExecutor(executors.DeleteExecutor):
                 serialized_user, 'delete_user', state_transition='begin_deleting')
         else:
             return tasks.StateTransitionTask().si(serialized_user, state_transition='begin_deleting')
+
+
+class ServiceSettingsPasswordResetExecutor(executors.ActionExecutor):
+    """ Reset user password and update service settings options. """
+
+    @classmethod
+    def get_task_signature(cls, service_settings, serialized_service_settings, **kwargs):
+        user = models.User.objects.get(settings=service_settings, alias=service_settings.username)
+        user.password = kwargs.pop('password')
+        user.schedule_updating()
+        user.save()
+        serialized_user = utils.serialize_instance(user)
+        return chain(
+            tasks.StateTransitionTask().si(serialized_service_settings, state_transition='begin_updating'),
+            tasks.BackendMethodTask().si(serialized_user, 'update_user', state_transition='begin_updating'),
+            UpdateSettingsCredentials().si(serialized_service_settings, serialized_user),
+            tasks.StateTransitionTask().si(serialized_user, state_transition='set_ok'),
+        )
