@@ -88,7 +88,7 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
         }
 
     def get_items(self, template):
-        return template.items.all().values('name', 'key')
+        return template.items.all().values('name', 'key', 'units')
 
     def get_triggers(self, template):
         return template.triggers.all().values_list('name', flat=True)
