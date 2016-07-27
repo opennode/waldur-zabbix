@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import serializers
+from rest_framework import serializers, reverse
 
 from nodeconductor.core.fields import MappedChoiceField
 from nodeconductor.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
@@ -42,10 +42,11 @@ class AdvanceMonitoringSerializer(serializers.HyperlinkedModelSerializer):
     """
     is_enabled = serializers.SerializerMethodField()
     state = serializers.SerializerMethodField()
+    host = serializers.SerializerMethodField('get_host_url')
 
     class Meta(object):
         model = models.ZabbixService
-        fields = ('url', 'name', 'state', 'is_enabled')
+        fields = ('url', 'name', 'state', 'is_enabled', 'host')
         extra_kwargs = {
             'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-detail'},
         }
@@ -60,7 +61,19 @@ class AdvanceMonitoringSerializer(serializers.HyperlinkedModelSerializer):
         """ Advance monitoring is enabled for instance if it has host that is
             connected to given instance.
         """
-        return models.Host.objects.filter(scope=self.get_instance(), service_project_link__service=service).exists()
+        return bool(self._get_host(service))
+
+    def get_host_url(self, service):
+        host = self._get_host(service)
+        if host is not None:
+            request = self.context['request']
+            return reverse.reverse(host.get_url_name() + '-detail', kwargs={'uuid': host.uuid.hex}, request=request)
+
+    def _get_host(self, service):
+        if 'host' not in self.context:  # cache host in context to avoid duplicated queries.
+            self.context['host'] = models.Host.objects.filter(
+                scope=self.get_instance(), service_project_link__service=service).first()
+        return self.context['host']
 
 
 class ServiceProjectLinkSerializer(structure_serializers.BaseServiceProjectLinkSerializer):
