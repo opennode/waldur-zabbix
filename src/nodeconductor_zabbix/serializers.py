@@ -66,7 +66,8 @@ class AdvanceMonitoringSerializer(serializers.HyperlinkedModelSerializer):
     def get_host_url(self, service):
         host = self._get_host(service)
         if host is not None:
-            return reverse.reverse(host.get_url_name() + '-detail', kwargs={'uuid': host.uuid.hex})
+            request = self.context['request']
+            return reverse.reverse(host.get_url_name() + '-detail', kwargs={'uuid': host.uuid.hex}, request=request)
 
     def _get_host(self, service):
         if 'host' not in self.context:  # cache host in context to avoid duplicated queries.
