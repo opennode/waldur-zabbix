@@ -101,7 +101,10 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
         }
 
     def get_items(self, template):
-        return template.items.all().values('name', 'key', 'units')
+        items = template.items.all().values('name', 'key', 'units', 'value_type')
+        for item in items:  # replace value types with human-readable names
+            item['value_type'] = dict(models.Item.ValueTypes.CHOICES)[item['value_type']]
+        return items
 
     def get_triggers(self, template):
         return template.triggers.all().values_list('name', flat=True)
@@ -171,6 +174,12 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
             instance = models.Host(**{k: v for k, v in attrs.items() if k != 'templates'})
             instance.clean()
+
+        spl = attrs.get('service_project_link') or self.instance.service_project_link
+        for template in attrs.get('templates', []):
+            if template.settings != spl.service.settings:
+                raise serializers.ValidationError('Template "%s" and host belong to different service settings.')
+
         return attrs
 
     def create(self, validated_data):
