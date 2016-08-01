@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import serializers, reverse
+from rest_framework import serializers
 
 from nodeconductor.core.fields import MappedChoiceField
 from nodeconductor.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
@@ -67,7 +67,7 @@ class AdvanceMonitoringSerializer(serializers.HyperlinkedModelSerializer):
         host = self._get_host(service)
         if host is not None:
             request = self.context['request']
-            return reverse.reverse(host.get_url_name() + '-detail', kwargs={'uuid': host.uuid.hex}, request=request)
+            return HostSerializer(instance=host, context={'request': request}).data
 
     def _get_host(self, service):
         if 'host' not in self.context:  # cache host in context to avoid duplicated queries.
