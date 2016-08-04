@@ -15,7 +15,7 @@ from nodeconductor.core.utils import datetime_to_timestamp, pwgen, instance_from
 from nodeconductor.monitoring.utils import get_period
 from nodeconductor.structure import views as structure_views, filters as structure_filters, models as structure_models
 
-from . import models, serializers, filters, executors
+from . import models, serializers, filters, executors, apps
 from .managers import filter_active
 
 
@@ -301,7 +301,10 @@ class AdvanceMonitoringViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = super(AdvanceMonitoringViewSet, self).get_queryset()
-        service_settings = structure_models.ServiceSettings.objects.filter(scope__tenant=self.instance.tenant)
+        service_settings = structure_models.ServiceSettings.objects.filter(type=apps.ZabbixConfig.service_name)
+        service_settings = [
+            ss for ss in service_settings
+            if ss.scope and isinstance(ss.scope, self.instance.__class__) and ss.scope.tenant == self.instance.tenant]
         return queryset.filter(settings__in=service_settings, settings__tags__name='advanced')
 
     def get_serializer_context(self):
