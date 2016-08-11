@@ -1,9 +1,7 @@
 from collections import defaultdict
 
-from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
-from django.core.urlresolvers import Resolver404
 from django.utils import six
-from rest_framework import status, exceptions, response, viewsets, permissions as rf_permissions, filters as rf_filters
+from rest_framework import status, exceptions, response
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -11,11 +9,11 @@ from rest_framework.response import Response
 from nodeconductor.core.exceptions import IncorrectStateException
 from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.views import StateExecutorViewSet
-from nodeconductor.core.utils import datetime_to_timestamp, pwgen, instance_from_url
+from nodeconductor.core.utils import datetime_to_timestamp, pwgen
 from nodeconductor.monitoring.utils import get_period
-from nodeconductor.structure import views as structure_views, filters as structure_filters, models as structure_models
+from nodeconductor.structure import views as structure_views, filters as structure_filters
 
-from . import models, serializers, filters, executors, apps
+from . import models, serializers, filters, executors
 from .managers import filter_active
 
 
@@ -274,40 +272,3 @@ class UserViewSet(structure_views.BaseServicePropertyViewSet, StateExecutorViewS
             {'detail': 'password update was scheduled successfully', 'password': user.password},
             status=status.HTTP_200_OK
         )
-
-
-# XXX: This view and all related to itacloud assembly.
-class AdvanceMonitoringViewSet(viewsets.ReadOnlyModelViewSet):
-    """ Show all Zabbix services that are available as advance monitoring for given instance.
-
-        Endpoint supports only GET request with parameter:
-         - instance - URL of OpenStack instance (required).
-    """
-    queryset = models.ZabbixService.objects.all()
-    serializer_class = serializers.AdvanceMonitoringSerializer
-    permission_classes = (rf_permissions.IsAuthenticated, rf_permissions.DjangoObjectPermissions)
-    filter_backends = (structure_filters.GenericRoleFilter, rf_filters.DjangoFilterBackend)
-
-    def initial(self, request, *args, **kwargs):
-        super(AdvanceMonitoringViewSet, self).initial(request, *args, **kwargs)
-        try:
-            instance_url = request.query_params['instance']
-        except KeyError:
-            raise exceptions.ValidationError('GET parameter "instance" should be specified.')
-        try:
-            self.instance = instance_from_url(instance_url, user=request.user)
-        except (Resolver404, AttributeError, MultipleObjectsReturned, ObjectDoesNotExist):
-            raise exceptions.ValidationError('Cannot restore instance from URL: %s' % instance_url)
-
-    def get_queryset(self):
-        queryset = super(AdvanceMonitoringViewSet, self).get_queryset()
-        service_settings = structure_models.ServiceSettings.objects.filter(type=apps.ZabbixConfig.service_name)
-        service_settings = [
-            ss for ss in service_settings
-            if ss.scope and isinstance(ss.scope, self.instance.__class__) and ss.scope.tenant == self.instance.tenant]
-        return queryset.filter(settings__in=service_settings, settings__tags__name='advanced')
-
-    def get_serializer_context(self):
-        context = super(AdvanceMonitoringViewSet, self).get_serializer_context()
-        context['instance'] = self.instance
-        return context
