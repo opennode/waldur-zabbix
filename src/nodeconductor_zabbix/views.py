@@ -11,7 +11,7 @@ from nodeconductor.core.serializers import HistorySerializer
 from nodeconductor.core.views import StateExecutorViewSet
 from nodeconductor.core.utils import datetime_to_timestamp, pwgen
 from nodeconductor.monitoring.utils import get_period
-from nodeconductor.structure import views as structure_views
+from nodeconductor.structure import views as structure_views, filters as structure_filters
 
 from . import models, serializers, filters, executors
 from .managers import filter_active
@@ -20,6 +20,27 @@ from .managers import filter_active
 class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
     queryset = models.ZabbixService.objects.all()
     serializer_class = serializers.ServiceSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'credentials':
+            return serializers.UserSerializer
+        return super(ZabbixServiceViewSet, self).get_serializer_class()
+
+    @detail_route(methods=['GET', 'POST'])
+    def credentials(self, request, uuid):
+        """ On GET request - return superadmin user data.
+            On POST - reset superuser password and return new one.
+        """
+        service = self.get_object()
+        if request.method == 'GET':
+            user = models.User.objects.get(settings=service.settings, alias=service.settings.username)
+            serializer_class = self.get_serializer_class()
+            serializer = serializer_class(user, context=self.get_serializer_context())
+            return Response(serializer.data)
+        else:
+            password = pwgen()
+            executors.ServiceSettingsPasswordResetExecutor.execute(service.settings, password=password)
+            return Response({'password': password})
 
 
 class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkViewSet):
@@ -142,6 +163,11 @@ class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
         (in the same order as it has been provided in request) and then by time.
         """
         items = self._get_items(request, hosts)
+        numeric_types = (models.Item.ValueTypes.FLOAT, models.Item.ValueTypes.INTEGER)
+        non_numeric_items = [item.name for item in items if item.value_type not in numeric_types]
+        if non_numeric_items:
+            raise exceptions.ValidationError(
+                'Cannot show historical data for non-numeric items: %s' % ', '.join(non_numeric_items))
         points = self._get_points(request)
 
         stats = []
@@ -210,7 +236,7 @@ class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.Template.objects.all().prefetch_related('items')
     serializer_class = serializers.TemplateSerializer
     lookup_field = 'uuid'
-    filter_class = filters.ZabbixServicePropertyFilter
+    filter_class = structure_filters.ServicePropertySettingsFilter
 
 
 class TriggerViewSet(structure_views.BaseServicePropertyViewSet):
@@ -224,14 +250,14 @@ class UserGroupViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.UserGroup.objects.all()
     serializer_class = serializers.UserGroupSerializer
     lookup_field = 'uuid'
-    filter_class = filters.ZabbixServicePropertyFilter
+    filter_class = structure_filters.ServicePropertySettingsFilter
 
 
 class UserViewSet(structure_views.BaseServicePropertyViewSet, StateExecutorViewSet):
     queryset = models.User.objects.all()
     serializer_class = serializers.UserSerializer
     lookup_field = 'uuid'
-    filter_class = filters.ZabbixServicePropertyFilter
+    filter_class = structure_filters.ServicePropertySettingsFilter
     create_executor = executors.UserCreateExecutor
     update_executor = executors.UserUpdateExecutor
     delete_executor = executors.UserDeleteExecutor

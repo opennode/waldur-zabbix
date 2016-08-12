@@ -7,8 +7,7 @@ from dateutil.relativedelta import relativedelta
 from django.contrib.contenttypes.models import ContentType
 from django.core.mail import send_mail
 
-from nodeconductor.core.tasks import retry_if_false, Task
-from nodeconductor.core.utils import datetime_to_timestamp
+from nodeconductor.core import tasks as core_tasks, utils as core_utils
 from nodeconductor.monitoring.models import ResourceItem, ResourceSla, ResourceSlaStateTransition
 from nodeconductor.monitoring.utils import format_period
 
@@ -48,9 +47,9 @@ def pull_sla(host_uuid):
     current_point = min_dt.replace(day=1)
     while current_point <= max_dt:
         period = format_period(current_point)
-        start_time = datetime_to_timestamp(current_point)
+        start_time = core_utils.datetime_to_timestamp(current_point)
         current_point += relativedelta(months=+1)
-        end_time = datetime_to_timestamp(min(max_dt, current_point))
+        end_time = core_utils.datetime_to_timestamp(min(max_dt, current_point))
         update_itservice_sla.delay(itservice.pk, period, start_time, end_time)
 
     logger.debug('Successfully pulled SLA for host with with UUID %s', host_uuid)
@@ -169,14 +168,14 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_key, monitoring_it
 
 
 @shared_task(max_retries=60, default_retry_delay=60)
-@retry_if_false
+@core_tasks.retry_if_false
 def after_creation_monitoring_item_update(host_uuid, config):
     item_value = update_host_scope_monitoring_items(
         host_uuid, config['zabbix_item_key'], config['monitoring_item_name'])
     return item_value in config.get('after_creation_update_terminate_values', []) or item_value is None
 
 
-class SMSTask(Task):
+class SMSTask(core_tasks.Task):
     """ Send SMS to given mobile number based on service settings or django settings """
 
     def execute(self, settings, message, phone):
@@ -188,3 +187,29 @@ class SMSTask(Task):
         else:
             logger.warning('SMS was not sent, because `sms_email_from` and `sms_email_rcpt` '
                            'were not configured properly.')
+
+
+@shared_task(name='nodeconductor.zabbix.pull_hosts')
+def pull_hosts():
+    pullable_hosts = Host.objects.exclude(backend_id='')  # Cannot pull hosts without backend_id
+    for host in pullable_hosts.filter(state=Host.States.ERRED):
+        serialized_host = core_utils.serialize_instance(host)
+        core_tasks.BackendMethodTask().apply_async(
+            args=(serialized_host, 'pull_host'),
+            link=core_tasks.RecoverTask().si(serialized_host),
+            link_error=core_tasks.ErrorMessageTask().s(serialized_host),
+        )
+    for host in Host.objects.filter(state=Host.States.OK):
+        serialized_host = core_utils.serialize_instance(host)
+        core_tasks.BackendMethodTask().apply_async(
+            args=(serialized_host, 'pull_host'),
+            link_error=core_tasks.ErrorStateTransitionTask().s(serialized_host)
+        )
+
+
+class UpdateSettingsCredentials(core_tasks.Task):
+
+    def execute(self, service_settings, serialized_user):
+        user = core_utils.deserialize_instance(serialized_user)
+        service_settings.password = user.password
+        service_settings.save()

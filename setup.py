@@ -16,14 +16,14 @@ tests_require = [
 ]
 
 install_requires = [
-    'nodeconductor>0.95.0',
+    'nodeconductor>=0.101.2',
     'pyzabbix>=0.7.2',
 ]
 
 
 setup(
     name='nodeconductor-zabbix',
-    version='0.3.0',
+    version='0.3.1',
     author='OpenNode Team',
     author_email='info@opennodecloud.com',
     url='http://nodeconductor.com',

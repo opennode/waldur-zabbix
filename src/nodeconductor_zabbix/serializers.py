@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from nodeconductor.core.fields import MappedChoiceField
+from nodeconductor.core.fields import MappedChoiceField, JsonField
 from nodeconductor.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
                                             AugmentedSerializerMixin)
 from nodeconductor.core.utils import datetime_to_timestamp, pwgen
@@ -31,7 +31,7 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
     class Meta(structure_serializers.BaseServiceSerializer.Meta):
         model = models.ZabbixService
         view_name = 'zabbix-detail'
-        required_fields = 'backend_url', 'username', 'password'
+        required_fields = ('backend_url', 'username', 'password')
 
 
 class ServiceProjectLinkSerializer(structure_serializers.BaseServiceProjectLinkSerializer):
@@ -59,7 +59,10 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
         }
 
     def get_items(self, template):
-        return template.items.all().values('name', 'key')
+        items = template.items.all().values('name', 'key', 'units', 'value_type')
+        for item in items:  # replace value types with human-readable names
+            item['value_type'] = dict(models.Item.ValueTypes.CHOICES)[item['value_type']]
+        return items
 
     def get_triggers(self, template):
         return template.triggers.all().values_list('name', flat=True)
@@ -83,7 +86,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         queryset=models.ZabbixServiceProjectLink.objects.all())
 
     # visible name could be populated from scope, so we need to mark it as not required
-    visible_name = serializers.CharField(required=False)
+    visible_name = serializers.CharField(required=False, max_length=models.Host.VISIBLE_NAME_MAX_LENGTH)
     scope = GenericRelatedField(related_models=structure_models.ResourceMixin.get_all_models(), required=False)
     templates = NestedTemplateSerializer(
         queryset=models.Template.objects.all().prefetch_related('items'), many=True, required=False)
@@ -92,37 +95,66 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         choice_mappings={v: k for k, v in models.Host.Statuses.CHOICES},
         read_only=True,
     )
+    interface_ip = serializers.IPAddressField(allow_blank=True, required=False, write_only=True,
+                                              help_text='IP of host interface.')
+    interface_parameters = JsonField(read_only=True)
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.Host
         view_name = 'zabbix-host-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates', 'error', 'status')
+            'visible_name', 'host_group_name', 'scope', 'templates', 'error', 'status',
+            'interface_ip', 'interface_parameters',)
         read_only_fields = structure_serializers.BaseResourceSerializer.Meta.read_only_fields + (
-            'error',)
+            'error', 'interface_parameters')
         protected_fields = structure_serializers.BaseResourceSerializer.Meta.protected_fields + (
-            'interface_parameters', )
+            'interface_ip', 'visible_name')
 
     def get_resource_fields(self):
         return super(HostSerializer, self).get_resource_fields() + ['scope']
 
     def validate(self, attrs):
-        # initiate name and visible name from scope if it is defined and check that they are not empty
-        if 'scope' in attrs:
-            attrs['visible_name'] = models.Host.get_visible_name_from_scope(attrs['scope'])
-        if not attrs.get('visible_name') and self.instance is None:
-            raise serializers.ValidationError('Visible name or scope should be defined.')
         # model validation
         if self.instance is not None:
             for name, value in attrs.items():
                 setattr(self.instance, name, value)
             self.instance.clean()
         else:
-            instance = models.Host(**{k: v for k, v in attrs.items() if k != 'templates'})
+            if not attrs.get('visible_name'):
+                if 'scope' not in attrs:
+                    raise serializers.ValidationError('Visible name or scope should be defined.')
+
+                # initiate name and visible name from scope if it is defined
+                attrs['visible_name'] = models.Host.get_visible_name_from_scope(attrs['scope'])
+
+            spl = attrs['service_project_link']
+            if models.Host.objects.filter(
+                service_project_link__service__settings=spl.service.settings,
+                visible_name=attrs['visible_name']
+            ).exists():
+                raise serializers.ValidationError({'visible_name': 'Visible name should be unique.'})
+
+            instance = models.Host(**{k: v for k, v in attrs.items() if k not in ('templates', 'interface_ip')})
             instance.clean()
+
+        spl = attrs.get('service_project_link') or self.instance.service_project_link
+        for template in attrs.get('templates', []):
+            if template.settings != spl.service.settings:
+                raise serializers.ValidationError('Template "%s" and host belong to different service settings.')
+
         return attrs
 
     def create(self, validated_data):
+        # define interface parameters based on settings and user input
+        spl = validated_data['service_project_link']
+        interface_parameters = spl.service.settings.get_option('interface_parameters')
+        scope = validated_data.get('scope')
+        interface_ip = validated_data.pop('interface_ip', None) or getattr(scope, 'internal_ips', None)
+        if interface_ip:
+            interface_parameters['ip'] = interface_ip
+        validated_data['interface_parameters'] = interface_parameters
+
+        # populate templates
         templates = validated_data.pop('templates', None)
         with transaction.atomic():
             host = super(HostSerializer, self).create(validated_data)
@@ -271,24 +303,28 @@ class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropert
         choices={v: v for _, v in models.User.Types.CHOICES},
         choice_mappings={v: k for k, v in models.User.Types.CHOICES},
     )
+    password = serializers.SerializerMethodField(
+        help_text='Password is visible only after user creation or if user has type "default".')
 
     class Meta(object):
         model = models.User
-        fields = 'url', 'alias', 'name', 'surname', 'type', 'groups', 'backend_id', 'settings', 'state', 'phone'
-        read_only_fields = 'url', 'backend_id',
-        protected_fields = 'settings',
+        fields = ('url', 'alias', 'name', 'surname', 'type', 'groups', 'backend_id', 'settings', 'state', 'phone',
+                  'password')
+        read_only_fields = ('url', 'backend_id',)
+        protected_fields = ('settings',)
         extra_kwargs = {
             'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-user-detail'},
             'settings': {'lookup_field': 'uuid'},
         }
 
+    def get_password(self, user):
+        show_password = (self.context['request'].method == 'POST' and user is None) or user.type == models.User.Types.DEFAULT
+        return user.password if show_password else None
+
     def get_fields(self):
         fields = super(UserSerializer, self).get_fields()
         fields['settings'].queryset = structure_models.ServiceSettings.objects.filter(
             type=apps.ZabbixConfig.service_name)
-        # show user password only after creation
-        if self.context['request'].method == 'POST' and self.instance is None:
-            fields['password'] = serializers.CharField(read_only=True)
         return fields
 
     def validate_type(self, value):

@@ -160,3 +160,10 @@ class ZabbixServiceCreationTemplateForm(ServiceTemplateForm):
     @classmethod
     def get_model(cls):
         return models.ZabbixService
+
+    @classmethod
+    def post_create(cls, template, zabbix_service):
+        database_parameters = zabbix_service.settings.options.get('database_parameters', {})
+        if isinstance(database_parameters, basestring):
+            zabbix_service.settings.options['database_parameters'] = json.loads(database_parameters)
+            zabbix_service.settings.save()

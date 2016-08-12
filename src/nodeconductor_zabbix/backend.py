@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.conf import settings as django_settings
-from django.db import connections, DatabaseError
+from django.db import connections, DatabaseError, transaction
 from django.utils import six, timezone
 from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
@@ -51,6 +51,23 @@ class QuietSession(requests.Session):
                 return super(QuietSession, self).request(*args, **kwargs)
         else:
             return super(QuietSession, self).request(*args, **kwargs)
+
+
+# XXX: This method is copy-pasted from openstack.backend it should be moved to
+#      core when we will provide final structure for import process.
+def _update_pulled_fields(instance, imported_instance, fields):
+    """ Update instance fields based on imported from backend data.
+
+        Save changes to DB only one or more fields were changed.
+    """
+    modified = False
+    for field in fields:
+        pulled_value = getattr(imported_instance, field)
+        if getattr(instance, field) != pulled_value:
+            setattr(instance, field, pulled_value)
+            modified = True
+    if modified:
+        instance.save()
 
 
 class ZabbixBackend(ServiceBackend):
@@ -136,17 +153,14 @@ class ZabbixBackend(ServiceBackend):
         templates_ids = [t.backend_id for t in host.templates.all()]
         group_id, _ = self._get_or_create_group_id(host_group_name)
 
-        try:
-            zabbix_host_id, created = self._get_or_create_host_id(
-                host_name=host.name,
-                visible_name=host.visible_name,
-                group_id=group_id,
-                templates_ids=templates_ids,
-                interface_parameters=interface_parameters,
-                status=host.status,
-            )
-        except (pyzabbix.ZabbixAPIException, RequestException) as e:
-            six.reraise(ZabbixBackendError, e)
+        zabbix_host_id, created = self._get_or_create_host_id(
+            host_name=host.name,
+            visible_name=host.visible_name,
+            group_id=group_id,
+            templates_ids=templates_ids,
+            interface_parameters=interface_parameters,
+            status=host.status,
+        )
 
         if not created:
             logger.warning('Host with name "%s" already exists', host.name)
@@ -494,27 +508,42 @@ class ZabbixBackend(ServiceBackend):
     def _get_or_create_host_id(self, host_name, visible_name, group_id, templates_ids, interface_parameters, status):
         """ Create Zabbix host with given parameters.
 
-        Return (<host>, <is_created>) tuple as result.
+        Return (<host_id>, <is_created>) tuple as result.
         """
+        host_id = self._get_host_id(host_name)
+        if host_id:
+            return host_id, False
+        host_id = self._create_host(host_name, visible_name, group_id, templates_ids,
+                                    interface_parameters, status)
+        return host_id, True
+
+    def _get_host_id(self, host_name):
         try:
-            if not self.api.host.get(filter={'host': host_name}):
-                templates = [{'templateid': template_id} for template_id in templates_ids]
-                host_parameters = {
-                    "host": host_name,
-                    "name": visible_name,
-                    "interfaces": [interface_parameters],
-                    "groups": [{"groupid": group_id}],
-                    "templates": templates,
-                    "status": status,
-                }
-                host = self.api.host.create(host_parameters)['hostids'][0]
-                return host, True
-            else:
-                host = self.api.host.get(filter={'host': host_name})[0]['hostid']
-                return host, False
-        except (pyzabbix.ZabbixAPIException, RequestException, IndexError, KeyError) as e:
-            raise ZabbixBackendError(
-                'Cannot get or create host with parameters: %s. Exception: %s' % (host_parameters, str(e)))
+            host = self.api.host.get(filter={'host': host_name}, output='hostid')
+            # If host with given name does not exist, empty list is returned
+            if host:
+                return host[0]['hostid']
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            logger.error('Cannot get host id by name: %s. Exception: %s', host_name, six.text_type(e))
+            six.reraise(ZabbixBackendError, e)
+
+    def _create_host(self, host_name, visible_name, group_id, templates_ids, interface_parameters, status):
+        host_parameters = {
+            "host": host_name,
+            "name": visible_name,
+            "interfaces": [interface_parameters],
+            "groups": [{"groupid": group_id}],
+            "templates": [{'templateid': template_id} for template_id in templates_ids],
+            "status": status,
+        }
+
+        try:
+            host = self.api.host.create(host_parameters)
+            return host['hostids'][0]
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            logger.error('Cannot create host with parameters: %s. Exception: %s',
+                         host_parameters, six.text_type(e))
+            six.reraise(ZabbixBackendError, e)
 
     def _get_showsla(self, algorithm):
         if algorithm == models.ITService.Algorithm.ANY:
@@ -677,14 +706,14 @@ class ZabbixBackend(ServiceBackend):
         if int_items:
             cursor = self._get_aggregated_values(
                 item_keys=[item.key for item in int_items],
-                table='history',
+                table='history_uint',
                 **default_kwargs
             )
             db_data += cursor.fetchall()
         if float_items:
             cursor = self._get_aggregated_values(
                 item_keys=[item.key for item in float_items],
-                table='history_uint',
+                table='history',
                 **default_kwargs
             )
             db_data += cursor.fetchall()
@@ -734,7 +763,7 @@ class ZabbixBackend(ServiceBackend):
         query = (
             'SELECT items.key_, %(method)s(value) '
             'FROM hosts, items, %(table)s history '
-            'WHERE items.hostid = %(hostid)s '
+            'WHERE items.hostid = %(hostid)s AND hosts.hostid = %(hostid)s AND history.itemid = items.itemid '
             'AND items.key_ IN (%(item_keys)s) '
             'AND clock >= %(start_timestamp)s '
             'AND clock <= %(end_timestamp)s '
@@ -781,3 +810,57 @@ class ZabbixBackend(ServiceBackend):
         except DatabaseError as e:
             logger.exception('Can not execute query the Zabbix DB.')
             six.reraise(ZabbixBackendError, e, sys.exc_info()[2])
+
+    def import_host(self, host_backend_id, service_project_link=None, save=True):
+        if save and not service_project_link:
+            raise AttributeError('Cannot save imported host if SPL is not defined.')
+        try:
+            backend_host = self.api.host.get(
+                filter={'hostid': host_backend_id}, selectGroups=True,
+                output=['host', 'name', 'description', 'error', 'status', 'groups'])[0]
+        except IndexError:
+            raise ZabbixBackendError('Host with id %s does not exist at backend' % host_backend_id)
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
+
+        host = models.Host()
+        host.name = backend_host['host']
+        host.visible_name = backend_host['name']
+        host.description = backend_host['description']
+        host.error = backend_host['error']
+        host.status = backend_host['status']
+        host.backend_id = host_backend_id
+        if backend_host.get('groups'):
+            host.host_group_name = backend_host['groups'][0]
+        else:
+            host.host_group_name = ''
+
+        if save:
+            templates = self.get_host_templates(host)
+            with transaction.atomic():
+                host.service_project_link = service_project_link
+                host.save()
+                host.templates.add(*templates)
+        return host
+
+    def get_host_templates(self, host):
+        try:
+            backend_templates = self.api.template.get(hostids=[host.backend_id], output=['templateid'])
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
+        return models.Template.objects.filter(backend_id__in=[t['templateid'] for t in backend_templates])
+
+    @log_backend_action()
+    def pull_host(self, host):
+        import_time = timezone.now()
+        imported_host = self.import_host(host.backend_id, save=False)
+        imported_host_templates = set(self.get_host_templates(host))
+
+        host.refresh_from_db()
+        if host.modified < import_time:
+            update_fields = ('name', 'visible_name', 'description', 'error', 'status', 'host_group_name')
+            _update_pulled_fields(host, imported_host, update_fields)
+
+        host_templates = set(host.templates.all())
+        host.templates.remove(*(host_templates - imported_host_templates))
+        host.templates.add(*(imported_host_templates - host_templates))
