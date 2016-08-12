@@ -16,13 +16,6 @@ class ZabbixConfig(AppConfig):
         from .backend import ZabbixBackend
         SupportedServices.register_backend(ZabbixBackend)
 
-        # templates
-        from nodeconductor.template import TemplateRegistry
-        from nodeconductor_zabbix import template
-        TemplateRegistry.register(template.HostProvisionTemplateForm)
-        TemplateRegistry.register(template.ITServiceProvisionTemplateForm)
-        TemplateRegistry.register(template.ZabbixServiceCreationTemplateForm)
-
         from . import handlers
         for index, resource_model in enumerate(structure_models.ResourceMixin.get_all_models()):
 
