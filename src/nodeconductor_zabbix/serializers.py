@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from nodeconductor.core.fields import MappedChoiceField
+from nodeconductor.core.fields import MappedChoiceField, JsonField
 from nodeconductor.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
                                             AugmentedSerializerMixin)
 from nodeconductor.core.utils import datetime_to_timestamp, pwgen
@@ -95,16 +95,20 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         choice_mappings={v: k for k, v in models.Host.Statuses.CHOICES},
         read_only=True,
     )
+    interface_ip = serializers.IPAddressField(allow_blank=True, required=False, write_only=True,
+                                              help_text='IP of host interface.')
+    interface_parameters = JsonField(read_only=True)
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.Host
         view_name = 'zabbix-host-detail'
         fields = structure_serializers.BaseResourceSerializer.Meta.fields + (
-            'visible_name', 'interface_parameters', 'host_group_name', 'scope', 'templates', 'error', 'status')
+            'visible_name', 'host_group_name', 'scope', 'templates', 'error', 'status',
+            'interface_ip', 'interface_parameters',)
         read_only_fields = structure_serializers.BaseResourceSerializer.Meta.read_only_fields + (
-            'error',)
+            'error', 'interface_parameters')
         protected_fields = structure_serializers.BaseResourceSerializer.Meta.protected_fields + (
-            'interface_parameters', 'visible_name')
+            'interface_ip', 'visible_name')
 
     def get_resource_fields(self):
         return super(HostSerializer, self).get_resource_fields() + ['scope']
@@ -130,7 +134,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
             ).exists():
                 raise serializers.ValidationError({'visible_name': 'Visible name should be unique.'})
 
-            instance = models.Host(**{k: v for k, v in attrs.items() if k != 'templates'})
+            instance = models.Host(**{k: v for k, v in attrs.items() if k not in ('templates', 'interface_ip')})
             instance.clean()
 
         spl = attrs.get('service_project_link') or self.instance.service_project_link
@@ -141,6 +145,16 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         return attrs
 
     def create(self, validated_data):
+        # define interface parameters based on settings and user input
+        spl = validated_data['service_project_link']
+        interface_parameters = spl.service.settings.get_option('interface_parameters')
+        scope = validated_data.get('scope')
+        interface_ip = validated_data.pop('interface_ip', None) or getattr(scope, 'internal_ips', None)
+        if interface_ip:
+            interface_parameters['ip'] = interface_ip
+        validated_data['interface_parameters'] = interface_parameters
+
+        # populate templates
         templates = validated_data.pop('templates', None)
         with transaction.atomic():
             host = super(HostSerializer, self).create(validated_data)
