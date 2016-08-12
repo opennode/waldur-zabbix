@@ -819,7 +819,7 @@ class ZabbixBackend(ServiceBackend):
                 filter={'hostid': host_backend_id}, selectGroups=True,
                 output=['host', 'name', 'description', 'error', 'status', 'groups'])[0]
         except IndexError:
-            raise ZabbixBackendError('Host with id %s does not exist at backend')
+            raise ZabbixBackendError('Host with id %s does not exist at backend' % host_backend_id)
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             six.reraise(ZabbixBackendError, e)
 
