@@ -303,24 +303,28 @@ class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropert
         choices={v: v for _, v in models.User.Types.CHOICES},
         choice_mappings={v: k for k, v in models.User.Types.CHOICES},
     )
+    password = serializers.SerializerMethodField(
+        help_text='Password is visible only after user creation or if user has type "default".')
 
     class Meta(object):
         model = models.User
-        fields = 'url', 'alias', 'name', 'surname', 'type', 'groups', 'backend_id', 'settings', 'state', 'phone'
-        read_only_fields = 'url', 'backend_id',
-        protected_fields = 'settings',
+        fields = ('url', 'alias', 'name', 'surname', 'type', 'groups', 'backend_id', 'settings', 'state', 'phone',
+                  'password')
+        read_only_fields = ('url', 'backend_id',)
+        protected_fields = ('settings',)
         extra_kwargs = {
             'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-user-detail'},
             'settings': {'lookup_field': 'uuid'},
         }
 
+    def get_password(self, user):
+        show_password = (self.context['request'].method == 'POST' and user is None) or user.type == models.User.Types.DEFAULT
+        return user.password if show_password else None
+
     def get_fields(self):
         fields = super(UserSerializer, self).get_fields()
         fields['settings'].queryset = structure_models.ServiceSettings.objects.filter(
             type=apps.ZabbixConfig.service_name)
-        # show user password only after creation
-        if self.context['request'].method == 'POST' and self.instance is None:
-            fields['password'] = serializers.CharField(read_only=True)
         return fields
 
     def validate_type(self, value):
