@@ -33,6 +33,13 @@ class HostDeleteExecutor(executors.DeleteExecutor):
             return tasks.StateTransitionTask().si(serialized_host, state_transition='begin_deleting')
 
 
+class HostPullExecutor(executors.BaseExecutor):
+
+    @classmethod
+    def get_task_signature(cls, host, serialized_host, **kwargs):
+        return tasks.BackendMethodTask().si(serialized_host, 'pull_host')
+
+
 class ITServiceCreateExecutor(executors.CreateExecutor):
 
     @classmethod
