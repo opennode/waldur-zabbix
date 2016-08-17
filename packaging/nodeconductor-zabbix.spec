@@ -1,7 +1,7 @@
 Name: nodeconductor-zabbix
 Summary: Zabbix plugin for NodeConductor
 Group: Development/Libraries
-Version: 0.3.1
+Version: 0.3.2
 Release: 1.el7
 License: Copyright 2015 OpenNode LLC.  All rights reserved.
 Url: http://nodeconductor.com
@@ -35,6 +35,9 @@ rm -rf %{buildroot}
 %defattr(-,root,root)
 
 %changelog
+* Wed Aug 17 2016 Jenkins <jenkins@opennodecloud.com> - 0.3.2-1.el7
+- New upstream release
+
 * Fri Aug 12 2016 Jenkins <jenkins@opennodecloud.com> - 0.3.1-1.el7
 - New upstream release
 

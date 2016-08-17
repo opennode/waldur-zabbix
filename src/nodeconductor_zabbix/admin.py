@@ -1,8 +1,11 @@
 from django.contrib import admin
+from django.core.exceptions import ValidationError
 from django.utils.translation import ungettext
 
+from nodeconductor.core.admin import ExecutorAdminAction
 from nodeconductor.core.tasks import send_task
 from nodeconductor.structure import admin as structure_admin
+from . import executors
 from .models import ZabbixServiceProjectLink, ZabbixService, Host, SlaHistory, SlaHistoryEvent, ITService
 
 
@@ -23,8 +26,9 @@ class SlaHistoryAdmin(admin.ModelAdmin):
 
 
 class HostAdmin(structure_admin.ResourceAdmin):
-    actions = ['pull_sla']
+    actions = ['pull_sla', 'pull']
 
+    # TODO: Rewrite with executor.
     def pull_sla(self, request, queryset):
         send_task('zabbix', 'pull_sla')([host.uuid.hex for host in queryset])
 
@@ -39,6 +43,16 @@ class HostAdmin(structure_admin.ResourceAdmin):
         self.message_user(request, message)
 
     pull_sla.short_description = "Pull SLAs for given Zabbix hosts"
+
+    class Pull(ExecutorAdminAction):
+        executor = executors.HostPullExecutor
+        short_description = 'Pull'
+
+        def validate(self, instance):
+            if instance.state not in (Host.States.OK, Host.States.ERRED):
+                raise ValidationError('Host has to be in stable state (OK or ERRED) to be pulled.')
+
+    pull = Pull()
 
 
 class ITServiceAdmin(structure_admin.ResourceAdmin):
