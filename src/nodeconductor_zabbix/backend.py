@@ -848,7 +848,9 @@ class ZabbixBackend(ServiceBackend):
             backend_templates = self.api.template.get(hostids=[host.backend_id], output=['templateid'])
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             six.reraise(ZabbixBackendError, e)
-        return models.Template.objects.filter(backend_id__in=[t['templateid'] for t in backend_templates])
+        return models.Template.objects.filter(
+            backend_id__in=[t['templateid'] for t in backend_templates],
+            settings=host.service_project_link.service.settings)
 
     @log_backend_action()
     def pull_host(self, host):
