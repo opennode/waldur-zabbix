@@ -30,7 +30,7 @@ Endpoints
 License
 -------
 
-NodeConductor Zabbix plugin is open-source under Apache v2 license.
+NodeConductor Zabbix plugin is open-source under MIT license.
 
 
 Indices and tables
