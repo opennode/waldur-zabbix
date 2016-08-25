@@ -836,11 +836,10 @@ class ZabbixBackend(ServiceBackend):
             host.host_group_name = ''
 
         if save:
+            host.service_project_link = service_project_link
+            host.save()
             templates = self.get_host_templates(host)
-            with transaction.atomic():
-                host.service_project_link = service_project_link
-                host.save()
-                host.templates.add(*templates)
+            host.templates.add(*templates)
         return host
 
     def get_host_templates(self, host):
