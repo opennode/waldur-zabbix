@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.conf import settings as django_settings
-from django.db import connections, DatabaseError, transaction
+from django.db import connections, DatabaseError
 from django.utils import six, timezone
 from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
