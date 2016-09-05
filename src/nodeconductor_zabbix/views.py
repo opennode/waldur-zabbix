@@ -272,7 +272,7 @@ class UserViewSet(structure_views.BaseServicePropertyViewSet, StateExecutorViewS
     queryset = models.User.objects.all()
     serializer_class = serializers.UserSerializer
     lookup_field = 'uuid'
-    filter_class = structure_filters.ServicePropertySettingsFilter
+    filter_class = filters.UserFilter
     create_executor = executors.UserCreateExecutor
     update_executor = executors.UserUpdateExecutor
     delete_executor = executors.UserDeleteExecutor
