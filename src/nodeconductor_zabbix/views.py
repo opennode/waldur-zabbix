@@ -144,6 +144,21 @@ class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
                 aggregated_data[key] += value
         return Response(aggregated_data, status=status.HTTP_200_OK)
 
+    # TODO: make methods items_aggregated_values and items_values DRY.
+    @detail_route()
+    def items_values(self, request, uuid):
+        """ The same as items_aggregated_values, only for one host """
+        host = self.get_object()
+        serializer = serializers.ItemsAggregatedValuesSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        filter_data = serializer.validated_data
+        items = self._get_items(request, [host])
+
+        backend = host.get_backend()
+        host_aggregated_values = backend.get_items_aggregated_values(
+            host, items, filter_data['start'], filter_data['end'], filter_data['method'])
+        return Response(host_aggregated_values, status=status.HTTP_200_OK)
+
     def _get_hosts(self):
         hosts = filter_active(self.filter_queryset(self.get_queryset()))
         if not hosts:
@@ -257,7 +272,7 @@ class UserViewSet(structure_views.BaseServicePropertyViewSet, StateExecutorViewS
     queryset = models.User.objects.all()
     serializer_class = serializers.UserSerializer
     lookup_field = 'uuid'
-    filter_class = structure_filters.ServicePropertySettingsFilter
+    filter_class = filters.UserFilter
     create_executor = executors.UserCreateExecutor
     update_executor = executors.UserUpdateExecutor
     delete_executor = executors.UserDeleteExecutor

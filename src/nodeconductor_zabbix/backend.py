@@ -8,7 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.conf import settings as django_settings
-from django.db import connections, DatabaseError, transaction
+from django.db import connections, DatabaseError
 from django.utils import six, timezone
 from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
@@ -469,6 +469,19 @@ class ZabbixBackend(ServiceBackend):
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             six.reraise(ZabbixBackendError, e)
 
+    # XXX: This method is hotfix for user group permissions management. We
+    #      should create models for permissions. NC-1564.
+    @log_backend_action()
+    def add_permission_to_user_group(self, user_group, host_group_name, permission_id):
+        try:
+            host_group_id, _ = self._get_or_create_group_id(host_group_name)
+            self.api.usergroup.update(
+                usrgrpid=user_group.backend_id,
+                rights=[{'id': host_group_id, 'permission': permission_id}]
+            )
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
+
     def _get_triggers_map(self, zabbix_services):
         """
         Return map of Zabbix trigger ID to NodeConductor trigger ID
@@ -836,11 +849,10 @@ class ZabbixBackend(ServiceBackend):
             host.host_group_name = ''
 
         if save:
+            host.service_project_link = service_project_link
+            host.save()
             templates = self.get_host_templates(host)
-            with transaction.atomic():
-                host.service_project_link = service_project_link
-                host.save()
-                host.templates.add(*templates)
+            host.templates.add(*templates)
         return host
 
     def get_host_templates(self, host):
@@ -848,7 +860,9 @@ class ZabbixBackend(ServiceBackend):
             backend_templates = self.api.template.get(hostids=[host.backend_id], output=['templateid'])
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             six.reraise(ZabbixBackendError, e)
-        return models.Template.objects.filter(backend_id__in=[t['templateid'] for t in backend_templates])
+        return models.Template.objects.filter(
+            backend_id__in=[t['templateid'] for t in backend_templates],
+            settings=host.service_project_link.service.settings)
 
     @log_backend_action()
     def pull_host(self, host):
