@@ -469,6 +469,19 @@ class ZabbixBackend(ServiceBackend):
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             six.reraise(ZabbixBackendError, e)
 
+    # XXX: This method is hotfix for user group permissions management. We
+    #      should create models for permissions. NC-1564.
+    @log_backend_action()
+    def add_permission_to_user_group(self, user_group, host_group_name, permission_id):
+        try:
+            host_group_id, _ = self._get_or_create_group_id(host_group_name)
+            self.api.usergroup.update(
+                usrgrpid=user_group.backend_id,
+                rights=[{'id': host_group_id, 'permission': permission_id}]
+            )
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            six.reraise(ZabbixBackendError, e)
+
     def _get_triggers_map(self, zabbix_services):
         """
         Return map of Zabbix trigger ID to NodeConductor trigger ID
