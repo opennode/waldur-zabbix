@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.conf import settings as django_settings
+from django.core.exceptions import MultipleObjectsReturned
 from django.db import connections, DatabaseError
 from django.utils import six, timezone
 from requests.exceptions import RequestException
@@ -251,80 +252,108 @@ class ZabbixBackend(ServiceBackend):
         else:
             logger.info('Successfully pulled Zabbix templates.')
 
-        logger.debug('About to pull Zabbix items for all templates.')
-        errors = []
-        for template in models.Template.objects.filter(settings=self.settings):
-            try:
-                self.pull_items(template)
-                self.pull_triggers(template)
-            except ZabbixBackendError as e:
-                logger.error(str(e))
-                errors.append(e)
-        if errors:
-            raise ZabbixBackendError('Cannot pull template items: %s', errors)
-        else:
-            logger.info('Successfully pulled Zabbix items.')
+        logger.debug('About to pull Zabbix items and triggers for all templates.')
+        self.pull_items()
+        self.pull_triggers()
+        logger.info('Successfully pulled Zabbix template items and triggers.')
 
-    def pull_triggers(self, template):
+    def pull_triggers(self, templates=None):
         """
-        Update existing NodeConductor triggers for Zabbix templates
+        Updates existing NodeConductor triggers for Zabbix templates
         """
-        logger.debug('About to pull Zabbix triggers for template %s', template.name)
+        if templates is None:
+            templates = models.Template.objects.filter(settings=self.settings)
+        elif not isinstance(templates, list):
+            templates = list(templates)
+
+        template_backend_ids = [template.backend_id for template in templates]
+        logger.debug('About to pull Zabbix triggers from backend')
         try:
-            zabbix_triggers = self.api.trigger.get(output=['description'], templateids=template.backend_id)
+            backend_templates = self.api.template.get(
+                output='templateid',
+                selectTriggers=['description', 'triggerid'],
+                templateids=template_backend_ids
+            )
         except pyzabbix.ZabbixAPIException as e:
-            message = 'Cannot pull template triggers for template %s. Exception: %s' % (template.name, e)
-            raise ZabbixBackendError(message)
+            raise ZabbixBackendError('Failed pull Zabbix triggers. Exception: %s' % e)
 
-        # Delete stale triggers
-        zabbix_trigger_ids = set([i['triggerid'] for i in zabbix_triggers])
-        template.triggers.exclude(backend_id__in=zabbix_trigger_ids).delete()
+        for backend_template in backend_templates:
+            try:
+                template = models.Template.objects.get(settings=self.settings,
+                                                       backend_id=backend_template['templateid'])
+            except MultipleObjectsReturned:
+                raise ZabbixBackendError('Failed to pull triggers for template with backend ID %s: '
+                                         'more than one template with same backend ID in the database.')
+            triggers_ids = set([i['triggerid'] for i in backend_template['triggers']])
 
-        # Update or create triggers
-        for zabbix_trigger in zabbix_triggers:
-            template.triggers.update_or_create(
-                backend_id=zabbix_trigger['triggerid'],
-                settings=template.settings,
-                defaults={'name': zabbix_trigger['description']})
-        logger.info('Successfully pulled Zabbix triggers for template %s.', template.name)
+            # Delete stale triggers
+            template.triggers.exclude(backend_id__in=triggers_ids).delete()
 
-    def pull_items(self, template):
+            # Update or create triggers
+            for trigger in backend_template['triggers']:
+                template.triggers.update_or_create(
+                    backend_id=trigger['triggerid'],
+                    settings=template.settings,
+                    defaults={'name': trigger['description']})
+
+        logger.info('Successfully pulled Zabbix templates triggers.')
+
+    def pull_items(self, templates=None):
         """
-        Update existing NodeConductor items for Zabbix templates
+        Updates existing NodeConductor items for Zabbix templates
         """
-        logger.debug('About to pull Zabbix items for template %s', template.name)
+        if templates is None:
+            templates = models.Template.objects.filter(settings=self.settings)
+        elif not isinstance(templates, list):
+            templates = list(templates)
+
+        template_backend_ids = [template.backend_id for template in templates]
+        logger.debug('About to pull Zabbix items from backend')
         try:
             fields = ('itemid', 'name', 'key_', 'value_type', 'units', 'history', 'delay')
-            zabbix_items = self.api.item.get(output=fields, templateids=template.backend_id)
+            backend_templates = self.api.template.get(
+                output='templateid',
+                selectItems=fields,
+                templateids=template_backend_ids
+            )
         except pyzabbix.ZabbixAPIException as e:
-            message = 'Cannot pull template items for template %s. Exception: %s' % (template.name, e)
-            raise ZabbixBackendError(message)
+            raise ZabbixBackendError('Failed to pull Zabbix items. Exception: %s' % e)
 
-        zabbix_items_ids = set([i['itemid'] for i in zabbix_items])
-        # Delete stale template items
-        template.items.exclude(backend_id__in=zabbix_items_ids).delete()
+        for backend_template in backend_templates:
+            try:
+                template = models.Template.objects.get(settings=self.settings,
+                                                       backend_id=backend_template['templateid'])
+            except MultipleObjectsReturned:
+                raise ZabbixBackendError('Failed to pull items for template with backend ID %s: '
+                                         'more than one template with same backend ID in the database.')
+            backend_items_ids = set([i['itemid'] for i in backend_template['items']])
 
-        # Update or create zabbix items
-        for zabbix_item in zabbix_items:
-            defaults = {
-                'name': zabbix_item['name'],
-                'key': zabbix_item['key_'],
-                'value_type': int(zabbix_item['value_type']),
-                'units': zabbix_item['units'],
-                'history': int(zabbix_item['history']),
-                'delay': int(zabbix_item['delay'])
-            }
-            nc_item, created = template.items.get_or_create(
-                backend_id=zabbix_item['itemid'], defaults=defaults)
-            if not created:
-                update_fields = []
-                for (name, value) in defaults.items():
-                    if getattr(nc_item, name) != value:
-                        setattr(nc_item, name, value)
-                        update_fields.append(name)
-                if update_fields:
-                    nc_item.save(update_fields=update_fields)
-        logger.info('Successfully pulled Zabbix items for template %s.', template.name)
+            # Delete stale items
+            template.items.exclude(backend_id__in=backend_items_ids).delete()
+
+            # Update or create zabbix items
+            for backend_item in backend_template['items']:
+                defaults = {
+                    'name': backend_item['name'],
+                    'key': backend_item['key_'],
+                    'value_type': int(backend_item['value_type']),
+                    'units': backend_item['units'],
+                    'history': int(backend_item['history']),
+                    'delay': int(backend_item['delay'])
+                }
+
+                nc_item, created = template.items.get_or_create(
+                    backend_id=backend_item['itemid'], defaults=defaults)
+                if not created:
+                    update_fields = []
+                    for (name, value) in defaults.items():
+                        if getattr(nc_item, name) != value:
+                            setattr(nc_item, name, value)
+                            update_fields.append(name)
+                    if update_fields:
+                        nc_item.save(update_fields=update_fields)
+
+        logger.info('Successfully pulled Zabbix items from backend.')
 
     def get_item_last_value(self, host_id, key, **kwargs):
         try:
