@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
-import uuidfield.fields
+import nodeconductor.core.fields
 
 import nodeconductor.core.models
 import nodeconductor.core.validators
@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('name', models.CharField(max_length=150, verbose_name='name', validators=[nodeconductor.core.validators.validate_name])),
-                ('uuid', uuidfield.fields.UUIDField(unique=True, max_length=32, editable=False, blank=True)),
+                ('uuid', nodeconductor.core.fields.UUIDField()),
                 ('backend_id', models.CharField(max_length=255, db_index=True)),
                 ('settings', models.ForeignKey(related_name='+', to='structure.ServiceSettings')),
                 ('agreed_sla', models.DecimalField(null=True, max_digits=6, decimal_places=4, blank=True)),
@@ -46,7 +46,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('name', models.CharField(max_length=255, verbose_name='name', validators=[nodeconductor.core.validators.validate_name])),
-                ('uuid', uuidfield.fields.UUIDField(unique=True, max_length=32, editable=False, blank=True)),
+                ('uuid', nodeconductor.core.fields.UUIDField()),
                 ('backend_id', models.CharField(max_length=255, db_index=True)),
                 ('settings', models.ForeignKey(related_name='+', to='structure.ServiceSettings')),
                 ('template', models.ForeignKey(related_name='triggers', to='nodeconductor_zabbix.Template')),

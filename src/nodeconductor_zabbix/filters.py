@@ -1,6 +1,7 @@
 import django_filters
 
 from nodeconductor.core import filters as core_filters
+from nodeconductor.core.filters import UUIDFilter
 from nodeconductor.structure import models as structure_models
 from nodeconductor.structure.filters import ServicePropertySettingsFilter
 
@@ -18,7 +19,7 @@ class HostScopeFilterBackend(core_filters.GenericKeyFilterBackend):
 
 class TriggerFilter(ServicePropertySettingsFilter):
     template = core_filters.URLFilter(view_name='zabbix-template-detail', name='template__uuid', distinct=True)
-    template_uuid = django_filters.CharFilter(name='template__uuid')
+    template_uuid = UUIDFilter(name='template__uuid')
 
     class Meta(ServicePropertySettingsFilter.Meta):
         model = models.Trigger

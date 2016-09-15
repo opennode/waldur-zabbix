@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import sys
 from setuptools import setup, find_packages
 
 
@@ -16,14 +15,14 @@ tests_require = [
 ]
 
 install_requires = [
-    'nodeconductor>=0.101.2',
+    'nodeconductor>=0.107.0',
     'pyzabbix>=0.7.2',
 ]
 
 
 setup(
     name='nodeconductor-zabbix',
-    version='0.4.0',
+    version='0.5.0',
     author='OpenNode Team',
     author_email='info@opennodecloud.com',
     url='http://nodeconductor.com',
