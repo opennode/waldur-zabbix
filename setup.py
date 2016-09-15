@@ -15,7 +15,7 @@ tests_require = [
 ]
 
 install_requires = [
-    'nodeconductor>0.105.0',
+    'nodeconductor>=0.107.0',
     'pyzabbix>=0.7.2',
 ]
 
