@@ -233,98 +233,69 @@ class ZabbixBackend(ServiceBackend):
         """ Update existing NodeConductor templates and their items """
         logger.debug('About to pull zabbix templates from backend.')
         try:
-            zabbix_templates = self.api.template.get(output=['name', 'templateid'])
-            zabbix_templates_ids = set([t['templateid'] for t in zabbix_templates])
-            # Delete stale templates
-            models.Template.objects.filter(settings=self.settings).exclude(backend_id__in=zabbix_templates_ids).delete()
-            # Update or create zabbix templates
-            for zabbix_template in zabbix_templates:
-                nc_template, created = models.Template.objects.get_or_create(
-                    backend_id=zabbix_template['templateid'],
-                    settings=self.settings,
-                    defaults={'name': zabbix_template['name']})
-                if not created and nc_template.name != zabbix_template['name']:
-                    nc_template.name = zabbix_template['name']
-                    nc_template.save()
-        except pyzabbix.ZabbixAPIException as e:
+            zabbix_templates = self.api.template.get(
+                output=['name', 'templateid'],
+                selectTriggers=['description', 'triggerid'],
+                selectItems=['itemid', 'name', 'key_', 'value_type', 'units', 'history', 'delay'],
+            )
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
             raise ZabbixBackendError('Cannot pull templates. Exception: %s' % e)
-        else:
-            logger.info('Successfully pulled Zabbix templates.')
 
-        logger.debug('About to pull Zabbix items for all templates.')
-        errors = []
-        for template in models.Template.objects.filter(settings=self.settings):
-            try:
-                self.pull_items(template)
-                self.pull_triggers(template)
-            except ZabbixBackendError as e:
-                logger.error(str(e))
-                errors.append(e)
-        if errors:
-            raise ZabbixBackendError('Cannot pull template items: %s', errors)
-        else:
-            logger.info('Successfully pulled Zabbix items.')
+        # Delete stale templates
+        zabbix_templates_ids = set([t['templateid'] for t in zabbix_templates])
+        models.Template.objects.filter(settings=self.settings).exclude(backend_id__in=zabbix_templates_ids).delete()
 
-    def pull_triggers(self, template):
-        """
-        Update existing NodeConductor triggers for Zabbix templates
-        """
-        logger.debug('About to pull Zabbix triggers for template %s', template.name)
-        try:
-            zabbix_triggers = self.api.trigger.get(output=['description'], templateids=template.backend_id)
-        except pyzabbix.ZabbixAPIException as e:
-            message = 'Cannot pull template triggers for template %s. Exception: %s' % (template.name, e)
-            raise ZabbixBackendError(message)
+        # Update or create zabbix templates
+        for zabbix_template in zabbix_templates:
+            nc_template, created = models.Template.objects.get_or_create(
+                backend_id=zabbix_template['templateid'],
+                settings=self.settings,
+                defaults={'name': zabbix_template['name']})
+            if not created and nc_template.name != zabbix_template['name']:
+                nc_template.name = zabbix_template['name']
+                nc_template.save()
+            logger.info('Successfully pulled Zabbix template %s', nc_template.name)
 
-        # Delete stale triggers
-        zabbix_trigger_ids = set([i['triggerid'] for i in zabbix_triggers])
-        template.triggers.exclude(backend_id__in=zabbix_trigger_ids).delete()
+            # Delete stale triggers
+            zabbix_triggers_ids = set([i['triggerid'] for i in zabbix_template['triggers']])
+            nc_template.triggers.exclude(backend_id__in=zabbix_triggers_ids).delete()
 
-        # Update or create triggers
-        for zabbix_trigger in zabbix_triggers:
-            template.triggers.update_or_create(
-                backend_id=zabbix_trigger['triggerid'],
-                settings=template.settings,
-                defaults={'name': zabbix_trigger['description']})
-        logger.info('Successfully pulled Zabbix triggers for template %s.', template.name)
+            # Update or create triggers
+            for zabbix_trigger in zabbix_template['triggers']:
+                nc_template.triggers.update_or_create(
+                    backend_id=zabbix_trigger['triggerid'],
+                    settings=nc_template.settings,
+                    defaults={'name': zabbix_trigger['description']})
 
-    def pull_items(self, template):
-        """
-        Update existing NodeConductor items for Zabbix templates
-        """
-        logger.debug('About to pull Zabbix items for template %s', template.name)
-        try:
-            fields = ('itemid', 'name', 'key_', 'value_type', 'units', 'history', 'delay')
-            zabbix_items = self.api.item.get(output=fields, templateids=template.backend_id)
-        except pyzabbix.ZabbixAPIException as e:
-            message = 'Cannot pull template items for template %s. Exception: %s' % (template.name, e)
-            raise ZabbixBackendError(message)
+            logger.info('Successfully pulled triggers for Zabbix template %s', nc_template.name)
 
-        zabbix_items_ids = set([i['itemid'] for i in zabbix_items])
-        # Delete stale template items
-        template.items.exclude(backend_id__in=zabbix_items_ids).delete()
+            # Delete stale items
+            zabbix_items_ids = set([i['itemid'] for i in zabbix_template['items']])
+            nc_template.items.exclude(backend_id__in=zabbix_items_ids).delete()
 
-        # Update or create zabbix items
-        for zabbix_item in zabbix_items:
-            defaults = {
-                'name': zabbix_item['name'],
-                'key': zabbix_item['key_'],
-                'value_type': int(zabbix_item['value_type']),
-                'units': zabbix_item['units'],
-                'history': int(zabbix_item['history']),
-                'delay': int(zabbix_item['delay'])
-            }
-            nc_item, created = template.items.get_or_create(
-                backend_id=zabbix_item['itemid'], defaults=defaults)
-            if not created:
-                update_fields = []
-                for (name, value) in defaults.items():
-                    if getattr(nc_item, name) != value:
-                        setattr(nc_item, name, value)
-                        update_fields.append(name)
-                if update_fields:
-                    nc_item.save(update_fields=update_fields)
-        logger.info('Successfully pulled Zabbix items for template %s.', template.name)
+            # Update or create zabbix items
+            for zabbix_item in zabbix_template['items']:
+                defaults = {
+                    'name': zabbix_item['name'],
+                    'key': zabbix_item['key_'],
+                    'value_type': int(zabbix_item['value_type']),
+                    'units': zabbix_item['units'],
+                    'history': int(zabbix_item['history']),
+                    'delay': int(zabbix_item['delay'])
+                }
+
+                nc_item, created = nc_template.items.get_or_create(
+                    backend_id=zabbix_item['itemid'], defaults=defaults)
+                if not created:
+                    update_fields = []
+                    for (name, value) in defaults.items():
+                        if getattr(nc_item, name) != value:
+                            setattr(nc_item, name, value)
+                            update_fields.append(name)
+                    if update_fields:
+                        nc_item.save(update_fields=update_fields)
+
+            logger.info('Successfully pulled items for Zabbix template %s', nc_template.name)
 
     def get_item_last_value(self, host_id, key, **kwargs):
         try:
