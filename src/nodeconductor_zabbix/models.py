@@ -100,6 +100,8 @@ Host._meta.get_field('name').max_length = 64
 
 
 class Template(structure_models.ServiceProperty):
+    parents = models.ManyToManyField('Template', related_name='children')
+
     @classmethod
     def get_url_name(cls):
         return 'zabbix-template'

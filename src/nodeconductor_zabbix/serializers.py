@@ -52,9 +52,10 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
     class Meta(object):
         model = models.Template
         view_name = 'zabbix-template-detail'
-        fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings')
+        fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings', 'children')
         extra_kwargs = {
             'url': {'lookup_field': 'uuid'},
+            'children': {'lookup_field': 'uuid', 'view_name': 'zabbix-template-detail'},
             'settings': {'lookup_field': 'uuid'},
         }
 
@@ -89,7 +90,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
     visible_name = serializers.CharField(required=False, max_length=models.Host.VISIBLE_NAME_MAX_LENGTH)
     scope = GenericRelatedField(related_models=structure_models.ResourceMixin.get_all_models(), required=False)
     templates = NestedTemplateSerializer(
-        queryset=models.Template.objects.all().prefetch_related('items'), many=True, required=False)
+        queryset=models.Template.objects.all().prefetch_related('items', 'children'), many=True, required=False)
     status = MappedChoiceField(
         choices={v: v for _, v in models.Host.Statuses.CHOICES},
         choice_mappings={v: k for k, v in models.Host.Statuses.CHOICES},
@@ -138,9 +139,16 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
             instance.clean()
 
         spl = attrs.get('service_project_link') or self.instance.service_project_link
-        for template in attrs.get('templates', []):
+        templates = attrs.get('templates', [])
+        for template in templates:
             if template.settings != spl.service.settings:
-                raise serializers.ValidationError('Template "%s" and host belong to different service settings.')
+                raise serializers.ValidationError(
+                    {'templates': 'Template "%s" and host belong to different service settings.' % template.name})
+            for child in template.children.all():
+                if child in templates:
+                    message = 'Template "%s" is already registered as child of template "%s"' % (
+                        child.name, template.name)
+                    raise serializers.ValidationError({'templates': message})
 
         return attrs
 
