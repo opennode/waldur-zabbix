@@ -31,6 +31,7 @@ class ZabbixLogsFilter(logging.Filter):
 
         return super(ZabbixLogsFilter, self).filter(record)
 
+
 pyzabbix.logger.addFilter(ZabbixLogsFilter())
 
 
@@ -237,6 +238,7 @@ class ZabbixBackend(ServiceBackend):
                 output=['name', 'templateid'],
                 selectTriggers=['description', 'triggerid'],
                 selectItems=['itemid', 'name', 'key_', 'value_type', 'units', 'history', 'delay'],
+                selectTemplates=['templateid'],
             )
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             raise ZabbixBackendError('Cannot pull templates. Exception: %s' % e)
@@ -254,7 +256,6 @@ class ZabbixBackend(ServiceBackend):
             if not created and nc_template.name != zabbix_template['name']:
                 nc_template.name = zabbix_template['name']
                 nc_template.save()
-            logger.info('Successfully pulled Zabbix template %s', nc_template.name)
 
             # Delete stale triggers
             zabbix_triggers_ids = set([i['triggerid'] for i in zabbix_template['triggers']])
@@ -266,8 +267,6 @@ class ZabbixBackend(ServiceBackend):
                     backend_id=zabbix_trigger['triggerid'],
                     settings=nc_template.settings,
                     defaults={'name': zabbix_trigger['description']})
-
-            logger.info('Successfully pulled triggers for Zabbix template %s', nc_template.name)
 
             # Delete stale items
             zabbix_items_ids = set([i['itemid'] for i in zabbix_template['items']])
@@ -295,7 +294,16 @@ class ZabbixBackend(ServiceBackend):
                     if update_fields:
                         nc_item.save(update_fields=update_fields)
 
-            logger.info('Successfully pulled items for Zabbix template %s', nc_template.name)
+        # Initialize templates children
+        for zabbix_template in zabbix_templates:
+            if not zabbix_template['templates']:
+                continue
+            nc_template = models.Template.objects.get(settings=self.settings, backend_id=zabbix_template['templateid'])
+            children_ids = [t['templateid'] for t in zabbix_template['templates']]
+            children = models.Template.filter(settings=self.settings, backend_id__in=children_ids)
+            nc_template.children.add(*children)
+
+        logger.info('Successfully pulled Zabbix templates for settings %s', self.settings)
 
     def get_item_last_value(self, host_id, key, **kwargs):
         try:
