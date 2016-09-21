@@ -85,3 +85,19 @@ class ITServiceFactory(factory.DjangoModelFactory):
     @classmethod
     def get_events_url(cls, service):
         return cls.get_url(service, 'events')
+
+
+class TemplateFactory(factory.DjangoModelFactory):
+    class Meta(object):
+        model = models.Template
+
+    name = factory.Sequence(lambda n: 'zabbix-template#%s' % n)
+    settings = factory.SubFactory(ServiceSettingsFactory)
+    backend_id = factory.Sequence(lambda n: 'zabbix-template-id%s' % n)
+
+    @classmethod
+    def get_url(cls, template=None, action=None):
+        if template is None:
+            template = TemplateFactory()
+        url = 'http://testserver' + reverse('zabbix-template-detail', kwargs={'uuid': template.uuid})
+        return url if action is None else url + action + '/'
