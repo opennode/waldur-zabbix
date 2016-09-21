@@ -143,7 +143,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         for template in templates:
             if template.settings != spl.service.settings:
                 raise serializers.ValidationError(
-                    {'templates': 'Template "%s" and host belong to different service settings.'})
+                    {'templates': 'Template "%s" and host belong to different service settings.' % template.name})
             for child in template.children.all():
                 if child in templates:
                     message = 'Template "%s" is already registered as child of template "%s"' % (
