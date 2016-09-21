@@ -300,7 +300,7 @@ class ZabbixBackend(ServiceBackend):
                 continue
             nc_template = models.Template.objects.get(settings=self.settings, backend_id=zabbix_template['templateid'])
             children_ids = [t['templateid'] for t in zabbix_template['templates']]
-            children = models.Template.filter(settings=self.settings, backend_id__in=children_ids)
+            children = models.Template.objects.filter(settings=self.settings, backend_id__in=children_ids)
             nc_template.children.add(*children)
 
         logger.info('Successfully pulled Zabbix templates for settings %s', self.settings)
