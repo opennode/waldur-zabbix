@@ -121,6 +121,10 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
                 setattr(self.instance, name, value)
             self.instance.clean()
         else:
+            service_settings = attrs.get('service_project_link').service.settings
+            if service_settings.state == structure_models.ServiceSettings.States.ERRED:
+                raise serializers.ValidationError('It is impossible to create host if service is in ERRED state.')
+
             if not attrs.get('visible_name'):
                 if 'scope' not in attrs:
                     raise serializers.ValidationError('Visible name or scope should be defined.')
