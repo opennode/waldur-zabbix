@@ -52,10 +52,11 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
     class Meta(object):
         model = models.Template
         view_name = 'zabbix-template-detail'
-        fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings', 'children')
+        fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings', 'children', 'parents')
         extra_kwargs = {
             'url': {'lookup_field': 'uuid'},
             'children': {'lookup_field': 'uuid', 'view_name': 'zabbix-template-detail'},
+            'parents': {'lookup_field': 'uuid', 'view_name': 'zabbix-template-detail'},
             'settings': {'lookup_field': 'uuid'},
         }
 
@@ -144,10 +145,23 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
         spl = attrs.get('service_project_link') or self.instance.service_project_link
         templates = attrs.get('templates', [])
-        for template in templates:
+        for n, template in enumerate(templates):
             if template.settings != spl.service.settings:
                 raise serializers.ValidationError(
                     {'templates': 'Template "%s" and host belong to different service settings.' % template.name})
+            template_parents = set(template.parents.all())
+            if template_parents:
+                # Avoid checking templates multiple times
+                for temp in templates[n + 1:]:
+                    if set(temp.parents.all()) & template_parents:
+                        message = 'Templates "%s" and "%s" must not have a common parent' % (template.name, temp.name)
+                        raise serializers.ValidationError({'templates': message})
+
+                for parent in template.parents.all():
+                    if parent in templates:
+                        message = 'Template "%s" is already registered as a parent of template "%s"' % \
+                                  (parent.name, template.name)
+                        raise serializers.ValidationError({'templates': message})
             for child in template.children.all():
                 if child in templates:
                     message = 'Template "%s" is already registered as child of template "%s"' % (
