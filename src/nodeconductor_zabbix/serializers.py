@@ -52,10 +52,11 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
     class Meta(object):
         model = models.Template
         view_name = 'zabbix-template-detail'
-        fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings', 'children')
+        fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings', 'children', 'parents')
         extra_kwargs = {
             'url': {'lookup_field': 'uuid'},
             'children': {'lookup_field': 'uuid', 'view_name': 'zabbix-template-detail'},
+            'parents': {'lookup_field': 'uuid', 'view_name': 'zabbix-template-detail'},
             'settings': {'lookup_field': 'uuid'},
         }
 
@@ -144,6 +145,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
         spl = attrs.get('service_project_link') or self.instance.service_project_link
         templates = attrs.get('templates', [])
+        parents = {}  # dictionary <parent template: child template>
         for template in templates:
             if template.settings != spl.service.settings:
                 raise serializers.ValidationError(
@@ -153,6 +155,18 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
                     message = 'Template "%s" is already registered as child of template "%s"' % (
                         child.name, template.name)
                     raise serializers.ValidationError({'templates': message})
+            for parent in template.parents.all():
+                if parent in parents:
+                    message = 'Templates %s and %s belong to the same parent %s' % (template, parents[parent], parent)
+                    raise serializers.ValidationError({'templates': message})
+                else:
+                    parents[parent] = template
+
+        for template in templates:
+            if template in parents:
+                message = 'Template "%s" is already registered as a parent of template "%s"' % \
+                          (template, parents[template])
+                raise serializers.ValidationError({'templates': message})
 
         return attrs
 

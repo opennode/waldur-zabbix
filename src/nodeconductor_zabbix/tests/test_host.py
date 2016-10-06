@@ -56,6 +56,40 @@ class HostApiCreateTest(test.APITransactionTestCase):
         })
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_impossible_to_add_parent_template_to_host(self):
+        template = factories.TemplateFactory(settings=self.spl.service.settings)
+        parent_template = factories.TemplateFactory(settings=self.spl.service.settings)
+        template.parents.add(parent_template)
+
+        response = self.client.post(factories.HostFactory.get_list_url(), {
+            'service_project_link': factories.ZabbixServiceProjectLinkFactory.get_url(self.spl),
+            'name': 'Valid host name',
+            'visible_name': 'Visible name',
+            'templates': [
+                {'url': factories.TemplateFactory.get_url(template)},
+                {'url': factories.TemplateFactory.get_url(parent_template)},
+            ]
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_impossible_to_add_templates_to_host_with_common_parent(self):
+        template1 = factories.TemplateFactory(settings=self.spl.service.settings)
+        template2 = factories.TemplateFactory(settings=self.spl.service.settings)
+        parent_template = factories.TemplateFactory(settings=self.spl.service.settings)
+        template1.parents.add(parent_template)
+        template2.parents.add(parent_template)
+
+        response = self.client.post(factories.HostFactory.get_list_url(), {
+            'service_project_link': factories.ZabbixServiceProjectLinkFactory.get_url(self.spl),
+            'name': 'Valid host name',
+            'visible_name': 'Visible name',
+            'templates': [
+                {'url': factories.TemplateFactory.get_url(template1)},
+                {'url': factories.TemplateFactory.get_url(template2)},
+            ]
+        })
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class HostCreateBackendTest(TestCase):
     def setUp(self):
