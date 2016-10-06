@@ -145,28 +145,28 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
         spl = attrs.get('service_project_link') or self.instance.service_project_link
         templates = attrs.get('templates', [])
-        for n, template in enumerate(templates):
+        parents = {}  # dictionary <parent template: child template>
+        for template in templates:
             if template.settings != spl.service.settings:
                 raise serializers.ValidationError(
                     {'templates': 'Template "%s" and host belong to different service settings.' % template.name})
-            template_parents = set(template.parents.all())
-            if template_parents:
-                # Avoid checking templates multiple times
-                for temp in templates[n + 1:]:
-                    if set(temp.parents.all()) & template_parents:
-                        message = 'Templates "%s" and "%s" must not have a common parent' % (template.name, temp.name)
-                        raise serializers.ValidationError({'templates': message})
-
-                for parent in template.parents.all():
-                    if parent in templates:
-                        message = 'Template "%s" is already registered as a parent of template "%s"' % \
-                                  (parent.name, template.name)
-                        raise serializers.ValidationError({'templates': message})
             for child in template.children.all():
                 if child in templates:
                     message = 'Template "%s" is already registered as child of template "%s"' % (
                         child.name, template.name)
                     raise serializers.ValidationError({'templates': message})
+            for parent in template.parents.all():
+                if parent in parents:
+                    message = 'Templates %s and %s have the same parent' % (template, parents[parent])
+                    raise serializers.ValidationError({'templates': message})
+                else:
+                    parents[parent] = template
+
+        for template in templates:
+            if template in parents:
+                message = 'Template "%s" is already registered as a parent of template "%s"' % \
+                          (template, parents[template])
+                raise serializers.ValidationError({'templates': message})
 
         return attrs
 
