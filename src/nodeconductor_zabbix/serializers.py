@@ -157,7 +157,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
                     raise serializers.ValidationError({'templates': message})
             for parent in template.parents.all():
                 if parent in parents:
-                    message = 'Templates %s and %s have the same parent' % (template, parents[parent])
+                    message = 'Templates %s and %s belong to the same parent %s' % (template, parents[parent], parent)
                     raise serializers.ValidationError({'templates': message})
                 else:
                     parents[parent] = template
