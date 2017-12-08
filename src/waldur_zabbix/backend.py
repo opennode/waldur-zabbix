@@ -13,14 +13,14 @@ from django.utils import six, timezone
 from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
 
-from nodeconductor.core.utils import datetime_to_timestamp
-from nodeconductor.structure import ServiceBackend, ServiceBackendError, log_backend_action
+from waldur_core.core.utils import datetime_to_timestamp
+from waldur_core.structure import ServiceBackend, ServiceBackendError, log_backend_action
 
 from . import models
 
 
 logger = logging.getLogger(__name__)
-sms_settings = getattr(django_settings, 'NODECONDUCTOR_ZABBIX', {}).get('SMS_SETTINGS', {})
+sms_settings = getattr(django_settings, 'WALDUR_ZABBIX', {}).get('SMS_SETTINGS', {})
 
 
 class ZabbixLogsFilter(logging.Filter):
@@ -74,7 +74,7 @@ def _update_pulled_fields(instance, imported_instance, fields):
 class ZabbixBackend(ServiceBackend):
 
     DEFAULTS = {
-        'host_group_name': 'nodeconductor',
+        'host_group_name': 'waldur',
         'templates_names': [],
         'database_parameters': {
             'host': 'localhost',
@@ -231,7 +231,7 @@ class ZabbixBackend(ServiceBackend):
             six.reraise(ZabbixBackendError, e)
 
     def pull_templates(self):
-        """ Update existing NodeConductor templates and their items """
+        """ Update existing Waldur templates and their items """
         logger.debug('About to pull zabbix templates from backend.')
         try:
             zabbix_templates = self.api.template.get(
@@ -463,7 +463,7 @@ class ZabbixBackend(ServiceBackend):
 
     def _get_triggers_map(self, zabbix_services):
         """
-        Return map of Zabbix trigger ID to NodeConductor trigger ID
+        Return map of Zabbix trigger ID to Waldur trigger ID
         """
         trigger_ids = self._map_keys(zabbix_services, 'triggerid')
 

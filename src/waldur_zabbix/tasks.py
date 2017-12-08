@@ -7,9 +7,9 @@ from dateutil.relativedelta import relativedelta
 from django.contrib.contenttypes.models import ContentType
 from django.core.mail import send_mail
 
-from nodeconductor.core import tasks as core_tasks, utils as core_utils
-from nodeconductor.monitoring.models import ResourceItem, ResourceSla, ResourceSlaStateTransition
-from nodeconductor.monitoring.utils import format_period
+from waldur_core.core import tasks as core_tasks, utils as core_utils
+from waldur_core.monitoring.models import ResourceItem, ResourceSla, ResourceSlaStateTransition
+from waldur_core.monitoring.utils import format_period
 
 from .backend import ZabbixBackendError
 from .models import Host, ITService, Item, SlaHistory
@@ -17,7 +17,7 @@ from .models import Host, ITService, Item, SlaHistory
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='nodeconductor.zabbix.pull_sla')
+@shared_task(name='waldur_core.zabbix.pull_sla')
 def pull_sla(host_uuid):
     """
     Pull SLAs for given Zabbix host for all time of its existence in Zabbix
@@ -55,7 +55,7 @@ def pull_sla(host_uuid):
     logger.debug('Successfully pulled SLA for host with with UUID %s', host_uuid)
 
 
-@shared_task(name='nodeconductor.zabbix.update_sla')
+@shared_task(name='waldur_core.zabbix.update_sla')
 def update_sla(sla_type):
     if sla_type not in ('yearly', 'monthly'):
         logger.error('Requested unknown SLA type: %s' % sla_type)
@@ -131,7 +131,7 @@ def update_itservice_sla(itservice_pk, period, start_time, end_time):
     logger.debug('Successfully updated SLA for IT Service %s (ID: %s)', itservice.name, itservice.backend_id)
 
 
-@shared_task(name='nodeconductor.zabbix.update_monitoring_items')
+@shared_task(name='waldur_core.zabbix.update_monitoring_items')
 def update_monitoring_items():
     """
     Regularly update value of monitored resources
@@ -168,7 +168,7 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_key, monitoring_it
 
 
 @shared_task(max_retries=60, default_retry_delay=60)
-@core_tasks.retry_if_false
+#@core_tasks.retry_if_false
 def after_creation_monitoring_item_update(host_uuid, config):
     item_value = update_host_scope_monitoring_items(
         host_uuid, config['zabbix_item_key'], config['monitoring_item_name'])
@@ -189,7 +189,7 @@ class SMSTask(core_tasks.Task):
                            'were not configured properly.')
 
 
-@shared_task(name='nodeconductor.zabbix.pull_hosts')
+@shared_task(name='waldur_core.zabbix.pull_hosts')
 def pull_hosts():
     pullable_hosts = Host.objects.exclude(backend_id='')  # Cannot pull hosts without backend_id
     for host in pullable_hosts.filter(state=Host.States.ERRED):

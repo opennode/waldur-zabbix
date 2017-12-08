@@ -2,9 +2,9 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.utils.translation import ungettext
 
-from nodeconductor.core.admin import ExecutorAdminAction
-from nodeconductor.core.tasks import send_task
-from nodeconductor.structure import admin as structure_admin
+from waldur_core.core.admin import ExecutorAdminAction
+from waldur_core.core.tasks import send_task
+from waldur_core.structure import admin as structure_admin
 from . import executors
 from .models import ZabbixServiceProjectLink, ZabbixService, Host, SlaHistory, SlaHistoryEvent, ITService
 

@@ -4,10 +4,10 @@ import mock
 
 from rest_framework import status, test
 
-from nodeconductor.core.utils import datetime_to_timestamp
-from nodeconductor.monitoring.utils import format_period
-from nodeconductor.structure.tests import factories as structure_factories
-from nodeconductor_zabbix.tasks import pull_sla
+from waldur_core.core.utils import datetime_to_timestamp
+from waldur_core.monitoring.utils import format_period
+from waldur_core.structure.tests import factories as structure_factories
+from waldur_zabbix.tasks import pull_sla
 
 from . import factories
 from .. import models
@@ -54,8 +54,8 @@ class SlaViewTest(test.APITransactionTestCase):
 
 class SlaPullTest(test.APITransactionTestCase):
 
-    @mock.patch('nodeconductor.structure.models.ServiceProjectLink.get_backend')
-    @mock.patch('nodeconductor_zabbix.tasks.update_itservice_sla')
+    @mock.patch('waldur_core.structure.models.ServiceProjectLink.get_backend')
+    @mock.patch('waldur_zabbix.tasks.update_itservice_sla')
     def test_task_calls_backend(self, mock_task, mock_backend):
         # Given
         itservice = factories.ITServiceFactory(is_main=True, backend_id='VALID')

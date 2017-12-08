@@ -1,13 +1,13 @@
-Name: nodeconductor-zabbix
-Summary: Zabbix plugin for NodeConductor
+Name: waldur-zabbix
+Summary: Zabbix plugin for Waldur
 Group: Development/Libraries
 Version: 0.6.0
 Release: 1.el7
 License: MIT
-Url: http://nodeconductor.com
+Url: http://waldur.com
 Source0: %{name}-%{version}.tar.gz
 
-Requires: nodeconductor >= 0.78.0
+Requires: waldur-core >= 0.151.0
 Requires: python-zabbix >= 0.7.2
 
 BuildArch: noarch
@@ -16,7 +16,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 BuildRequires: python-setuptools
 
 %description
-NodeConductor Zabbix adds Zabbix monitoring support to NodeConductor.
+Waldur Zabbix adds Zabbix monitoring support to Waldur.
 
 %prep
 %setup -q -n %{name}-%{version}
