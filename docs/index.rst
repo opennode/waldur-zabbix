@@ -1,4 +1,4 @@
-Welcome to NodeConductor Zabbix plugin's documentation!
+Welcome to Waldur Zabbix plugin's documentation!
 =======================================================
 
 Zabbix service provides an interface to Zabbix monitoring system.
@@ -30,7 +30,7 @@ Endpoints
 License
 -------
 
-NodeConductor Zabbix plugin is open-source under MIT license.
+Waldur Zabbix plugin is open-source under MIT license.
 
 
 Indices and tables

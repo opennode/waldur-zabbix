@@ -178,7 +178,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'nodeconductorzabbixdoc'
+htmlhelp_basename = 'waldurzabbixdoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -198,7 +198,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'nodeconductorzabbix.tex', u'Waldur Zabbix Documentation',
+  ('index', 'waldurzabbix.tex', u'Waldur Zabbix Documentation',
    u'OpenNode', 'manual'),
 ]
 
@@ -242,8 +242,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'NodeConductorZabbix', u'Waldur Zabbix Documentation',
-   u'OpenNode', 'NodeConductorZabbix', 'One line description of project.',
+  ('index', 'WaldurZabbix', u'Waldur Zabbix Documentation',
+   u'OpenNode', 'WaldurZabbix', 'One line description of project.',
    'Miscellaneous'),
 ]
 

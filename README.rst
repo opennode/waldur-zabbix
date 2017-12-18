@@ -1,5 +1,4 @@
-NodeConductor Zabbix
-====================
+Waldur Zabbix
+=============
 
-NodeConductor Zabbix adds Zabbix support to NodeConductor
-
+Waldur Zabbix adds Zabbix support to Waldur.
