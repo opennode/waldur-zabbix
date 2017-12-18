@@ -15,18 +15,19 @@ tests_require = [
 ]
 
 install_requires = [
-    'nodeconductor>=0.107.0',
+    'waldur-core>=0.151.0',
     'pyzabbix>=0.7.2',
 ]
 
 
 setup(
-    name='nodeconductor-zabbix',
-    version='0.6.0',
+    name='waldur-zabbix',
+    version='0.7.0',
     author='OpenNode Team',
     author_email='info@opennodecloud.com',
-    url='http://nodeconductor.com',
-    description='NodeConductor Zabbix adds support for Zabbix monitoring server management',
+    url='http://waldur.com',
+    description='Waldur Zabbix adds support for Zabbix monitoring server management',
+    license='MIT',
     long_description=open('README.rst').read(),
     package_dir={'': 'src'},
     packages=find_packages('src', exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
@@ -36,8 +37,8 @@ setup(
         'dev': dev_requires,
     },
     entry_points={
-        'nodeconductor_extensions': (
-            'nodeconductor_zabbix = nodeconductor_zabbix.extension:ZabbixExtension',
+        'waldur_extensions': (
+            'waldur_zabbix = waldur_zabbix.extension:ZabbixExtension',
         ),
     },
     # tests_require=tests_requires,

@@ -4,12 +4,12 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from nodeconductor.core.fields import MappedChoiceField, JsonField
-from nodeconductor.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
+from waldur_core.core.fields import MappedChoiceField, JsonField
+from waldur_core.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
                                             AugmentedSerializerMixin)
-from nodeconductor.core.utils import datetime_to_timestamp, pwgen
-from nodeconductor.monitoring.utils import get_period
-from nodeconductor.structure import serializers as structure_serializers, models as structure_models
+from waldur_core.core.utils import datetime_to_timestamp, pwgen
+from waldur_core.monitoring.utils import get_period
+from waldur_core.structure import serializers as structure_serializers, models as structure_models
 
 from . import models, apps
 
@@ -49,13 +49,14 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
     items = serializers.SerializerMethodField()
     triggers = serializers.SerializerMethodField()
 
-    class Meta(object):
+    class Meta(structure_serializers.BasePropertySerializer.Meta):
         model = models.Template
         view_name = 'zabbix-template-detail'
-        fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings', 'children')
+        fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings', 'children', 'parents')
         extra_kwargs = {
             'url': {'lookup_field': 'uuid'},
             'children': {'lookup_field': 'uuid', 'view_name': 'zabbix-template-detail'},
+            'parents': {'lookup_field': 'uuid', 'view_name': 'zabbix-template-detail'},
             'settings': {'lookup_field': 'uuid'},
         }
 
@@ -121,6 +122,10 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
                 setattr(self.instance, name, value)
             self.instance.clean()
         else:
+            service_settings = attrs.get('service_project_link').service.settings
+            if service_settings.state == structure_models.ServiceSettings.States.ERRED:
+                raise serializers.ValidationError('It is impossible to create host if service is in ERRED state.')
+
             if not attrs.get('visible_name'):
                 if 'scope' not in attrs:
                     raise serializers.ValidationError('Visible name or scope should be defined.')
@@ -140,6 +145,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
         spl = attrs.get('service_project_link') or self.instance.service_project_link
         templates = attrs.get('templates', [])
+        parents = {}  # dictionary <parent template: child template>
         for template in templates:
             if template.settings != spl.service.settings:
                 raise serializers.ValidationError(
@@ -149,6 +155,18 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
                     message = 'Template "%s" is already registered as child of template "%s"' % (
                         child.name, template.name)
                     raise serializers.ValidationError({'templates': message})
+            for parent in template.parents.all():
+                if parent in parents:
+                    message = 'Templates %s and %s belong to the same parent %s' % (template, parents[parent], parent)
+                    raise serializers.ValidationError({'templates': message})
+                else:
+                    parents[parent] = template
+
+        for template in templates:
+            if template in parents:
+                message = 'Template "%s" is already registered as a parent of template "%s"' % \
+                          (template, parents[template])
+                raise serializers.ValidationError({'templates': message})
 
         return attrs
 
@@ -300,7 +318,8 @@ class NestedUserGroupSerializer(UserGroupSerializer, HyperlinkedRelatedModelSeri
         pass
 
 
-class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropertySerializer):
+class UserSerializer(structure_serializers.BasePropertySerializer):
+
     groups = NestedUserGroupSerializer(queryset=models.UserGroup.objects.all(), many=True)
     state = MappedChoiceField(
         choices={v: v for _, v in models.User.States.CHOICES},

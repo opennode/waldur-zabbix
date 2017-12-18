@@ -1,17 +1,15 @@
 from collections import defaultdict
 
-from django.utils import six
 from rest_framework import status, exceptions, response
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
-from nodeconductor.core.exceptions import IncorrectStateException
-from nodeconductor.core.serializers import HistorySerializer
-from nodeconductor.core.views import StateExecutorViewSet
-from nodeconductor.core.utils import datetime_to_timestamp, pwgen
-from nodeconductor.monitoring.utils import get_period
-from nodeconductor.structure import views as structure_views, filters as structure_filters
+from waldur_core.core.exceptions import IncorrectStateException
+from waldur_core.core.serializers import HistorySerializer
+from waldur_core.core.utils import datetime_to_timestamp, pwgen
+from waldur_core.monitoring.utils import get_period
+from waldur_core.structure import views as structure_views
 
 from . import models, serializers, filters, executors
 from .managers import filter_active
@@ -48,7 +46,7 @@ class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkView
     serializer_class = serializers.ServiceProjectLinkSerializer
 
 
-class BaseZabbixResourceViewSet(structure_views.BaseOnlineResourceViewSet):
+class BaseZabbixResourceViewSet(structure_views.ResourceViewSet):
     def perform_provision(self, serializer):
         resource = serializer.save()
         backend = resource.get_backend()
@@ -65,9 +63,7 @@ class NoItemsException(exceptions.APIException):
     default_detail = 'There are no items that match given query.'
 
 
-class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
-                                     structure_views.ResourceViewMixin,
-                                     StateExecutorViewSet)):
+class HostViewSet(structure_views.ResourceViewSet):
     """ Representation of Zabbix hosts and related actions. """
     queryset = models.Host.objects.all()
     serializer_class = serializers.HostSerializer
@@ -223,9 +219,7 @@ class HostViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
         return map(sum_without_none, zip(*rows))
 
 
-class ITServiceViewSet(six.with_metaclass(structure_views.ResourceViewMetaclass,
-                                          structure_views.ResourceViewMixin,
-                                          StateExecutorViewSet)):
+class ITServiceViewSet(structure_views.ResourceViewSet):
     queryset = models.ITService.objects.all().select_related('trigger')
     serializer_class = serializers.ITServiceSerializer
     lookup_field = 'uuid'
@@ -251,7 +245,7 @@ class TemplateViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.Template.objects.all().prefetch_related('items')
     serializer_class = serializers.TemplateSerializer
     lookup_field = 'uuid'
-    filter_class = structure_filters.ServicePropertySettingsFilter
+    filter_class = filters.TemplateFilter
 
 
 class TriggerViewSet(structure_views.BaseServicePropertyViewSet):
@@ -265,10 +259,10 @@ class UserGroupViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.UserGroup.objects.all()
     serializer_class = serializers.UserGroupSerializer
     lookup_field = 'uuid'
-    filter_class = structure_filters.ServicePropertySettingsFilter
+    filter_class = filters.UserGroupFilter
 
 
-class UserViewSet(structure_views.BaseServicePropertyViewSet, StateExecutorViewSet):
+class UserViewSet(structure_views.BaseServicePropertyViewSet):
     queryset = models.User.objects.all()
     serializer_class = serializers.UserSerializer
     lookup_field = 'uuid'

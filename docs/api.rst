@@ -22,9 +22,9 @@ The following rules for generation of the service settings are used:
  - backend_url - Zabbix API URL (e.g. http://example.com/zabbix/api_jsonrpc.php);
  - username - Zabbix user username (e.g. admin);
  - password - Zabbix user password (e.g. zabbix);
- - host_group_name - Zabbix group name for registered hosts (default: "nodeconductor");
+ - host_group_name - Zabbix group name for registered hosts (default: "waldur");
  - interface_parameters - default parameters for hosts interface. (default: {"dns": "", "ip": "0.0.0.0", "main": 1, "port": "10050", "type": 1, "useip": 1});
- - templates_names - List of Zabbix hosts templates. (default: ["NodeConductor"]);
+ - templates_names - List of Zabbix hosts templates. (default: ["Waldur"]);
  - database_parameters - Zabbix database parameters. (default: {"host": "localhost", "port": "3306", "name": "zabbix", "user": "admin", "password": ""})
 
 
@@ -156,13 +156,13 @@ Example rendering of the host object:
         "backend_id": "2535",
         "visible_name": "a851fa75-5599-467b-be11-3d15858e8673",
         "interface_parameters": "{u'ip': u'0.0.0.0', u'useip': 1, u'dns': u'', u'main': 1, u'type': 1, u'port': u'10050'}",
-        "host_group_name": "nodeconductor",
+        "host_group_name": "waldur",
         "scope": null,
         "templates": [
             {
                 "url": "http://example.com/api/zabbix-templates/99771937d38d41ceba3352b99e01b00b/",
                 "uuid": "99771937d38d41ceba3352b99e01b00b",
-                "name": "Template NodeConductor Instance",
+                "name": "Template Waldur Instance",
                 "items": [
                     {
                         "name": "Host name of zabbix_agentd running",

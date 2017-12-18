@@ -1,10 +1,10 @@
-from nodeconductor.core import NodeConductorExtension
+from waldur_core.core import WaldurExtension
 
 
-class ZabbixExtension(NodeConductorExtension):
+class ZabbixExtension(WaldurExtension):
 
     class Settings:
-        NODECONDUCTOR_ZABBIX = {
+        WALDUR_ZABBIX = {
             'SMS_SETTINGS': {
                 # configurations for default SMS notifications.
                 'SMS_EMAIL_FROM': None,
@@ -14,7 +14,7 @@ class ZabbixExtension(NodeConductorExtension):
 
     @staticmethod
     def django_app():
-        return 'nodeconductor_zabbix'
+        return 'waldur_zabbix'
 
     @staticmethod
     def rest_urls():
@@ -26,21 +26,21 @@ class ZabbixExtension(NodeConductorExtension):
         from datetime import timedelta
         return {
             'update-monthly-slas': {
-                'task': 'nodeconductor.zabbix.update_sla',
+                'task': 'waldur_core.zabbix.update_sla',
                 'schedule': timedelta(minutes=5),
                 'args': ('monthly',),
             },
             'update-yearly-slas': {
-                'task': 'nodeconductor.zabbix.update_sla',
+                'task': 'waldur_core.zabbix.update_sla',
                 'schedule': timedelta(minutes=10),
                 'args': ('yearly',),
             },
             'update-monitoring-items': {
-                'task': 'nodeconductor.zabbix.update_monitoring_items',
+                'task': 'waldur_core.zabbix.update_monitoring_items',
                 'schedule': timedelta(minutes=10),
             },
             'pull-zabbix-hosts': {
-                'task': 'nodeconductor.zabbix.pull_hosts',
+                'task': 'waldur_core.zabbix.pull_hosts',
                 'schedule': timedelta(minutes=30),
             },
         }

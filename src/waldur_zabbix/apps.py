@@ -6,12 +6,12 @@ from django_fsm import signals as fsm_signals
 
 
 class ZabbixConfig(AppConfig):
-    name = 'nodeconductor_zabbix'
-    verbose_name = "NodeConductor Zabbix"
+    name = 'waldur_zabbix'
+    verbose_name = 'Waldur Zabbix'
     service_name = 'Zabbix'
 
     def ready(self):
-        from nodeconductor.structure import SupportedServices, models as structure_models
+        from waldur_core.structure import SupportedServices, models as structure_models
         # structure
         from .backend import ZabbixBackend
         SupportedServices.register_backend(ZabbixBackend)
@@ -22,12 +22,12 @@ class ZabbixConfig(AppConfig):
             fsm_signals.post_transition.connect(
                 handlers.delete_hosts_on_scope_deletion,
                 sender=resource_model,
-                dispatch_uid='nodeconductor_zabbix.handlers.delete_hosts_on_scope_deletion_%s_%s' % (
+                dispatch_uid='waldur_zabbix.handlers.delete_hosts_on_scope_deletion_%s_%s' % (
                     index, resource_model.__name__)
             )
 
         signals.post_save.connect(
             handlers.refresh_database_connection,
             sender=structure_models.ServiceSettings,
-            dispatch_uid='nodeconductor_zabbix.handlers.refresh_database_connection',
+            dispatch_uid='waldur_zabbix.handlers.refresh_database_connection',
         )

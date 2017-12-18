@@ -2,7 +2,7 @@ import factory
 
 from django.core.urlresolvers import reverse
 
-from nodeconductor.structure.tests import factories as structure_factories
+from waldur_core.structure.tests import factories as structure_factories
 
 from .. import models
 from ..apps import ZabbixConfig
@@ -16,7 +16,6 @@ class ZabbixServiceFactory(factory.DjangoModelFactory):
     class Meta(object):
         model = models.ZabbixService
 
-    name = factory.Sequence(lambda n: 'service%s' % n)
     settings = factory.SubFactory(ServiceSettingsFactory)
     customer = factory.SubFactory(structure_factories.CustomerFactory)
 
