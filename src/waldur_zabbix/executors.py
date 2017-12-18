@@ -1,6 +1,6 @@
 from celery import chain
 
-from nodeconductor.core import executors, tasks, utils
+from waldur_core.core import executors, tasks, utils
 
 from . import models
 from .tasks import SMSTask, UpdateSettingsCredentials

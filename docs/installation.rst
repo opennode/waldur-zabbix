@@ -1,14 +1,14 @@
 Installation from source
 ------------------------
 
- * `Install NodeConductor <http://nodeconductor.readthedocs.org/en/latest/guide/intro.html#installation-from-source>`_
- * Clone NodeConductor Zabbix repository
+ * `Install Waldur <http://waldur.readthedocs.org/en/latest/guide/intro.html#installation-from-source>`_
+ * Clone Waldur Zabbix repository
 
   .. code-block:: bash
 
-    git clone git@code.opennodecloud.com:nodeconductor/nodeconductor-zabbix.git
+    git clone git@code.opennodecloud.com:waldur/waldur-zabbix.git
 
- * Install NodeConductor Zabbix into NodeConductor virtual environment
+ * Install Waldur Zabbix into Waldur virtual environment
 
   .. code-block:: bash
 
@@ -18,14 +18,14 @@ Installation from source
 Configuration
 +++++++++++++
 
-Zabbix plugin settings should be defined in NodeConductor's settings.py file
-under **NODECONDUCTOR_ZABBIX** section.
+Zabbix plugin settings should be defined in Waldur's settings.py file
+under **WALDUR_ZABBIX** section.
 
 For example,
 
 .. code-block:: python
 
-        NODECONDUCTOR_ZABBIX = {
+        WALDUR_ZABBIX = {
             'SMS_SETTINGS': {
                 'SMS_EMAIL_FROM': 'zabbix@example.com',
                 'SMS_EMAIL_RCPT': '{phone}@example.com',

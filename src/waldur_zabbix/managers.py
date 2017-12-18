@@ -1,12 +1,12 @@
-from nodeconductor.core.managers import GenericKeyMixin
-from nodeconductor.structure.managers import StructureManager
-from nodeconductor.structure.models import Resource, ResourceMixin
+from waldur_core.core.managers import GenericKeyMixin
+from waldur_core.structure.managers import StructureManager
+from waldur_core.structure.models import NewResource as Resource, ResourceMixin
 
 
 def filter_active(qs):
     INVALID_STATES = (
-        Resource.States.PROVISIONING_SCHEDULED,
-        Resource.States.PROVISIONING,
+        Resource.States.CREATION_SCHEDULED,
+        Resource.States.DELETION_SCHEDULED,
         Resource.States.DELETING,
         Resource.States.ERRED
     )

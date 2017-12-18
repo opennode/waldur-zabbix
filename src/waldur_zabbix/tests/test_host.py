@@ -5,9 +5,9 @@ import pyzabbix
 from requests import RequestException
 from rest_framework import status, test
 
-from nodeconductor.structure import ServiceBackendError
-from nodeconductor.structure.models import ServiceSettings
-from nodeconductor.structure.tests import factories as structure_factories
+from waldur_core.structure import ServiceBackendError
+from waldur_core.structure.models import ServiceSettings
+from waldur_core.structure.tests import factories as structure_factories
 
 from . import factories
 from .. import models
@@ -21,13 +21,13 @@ class HostApiCreateTest(test.APITransactionTestCase):
         self.spl = factories.ZabbixServiceProjectLinkFactory()
 
     def test_visible_name_populated_from_scope(self):
-        vm = structure_factories.TestInstanceFactory()
-
-        response = self.client.post(factories.HostFactory.get_list_url(), {
+        vm = structure_factories.TestNewInstanceFactory()
+        data = {
             'service_project_link': factories.ZabbixServiceProjectLinkFactory.get_url(self.spl),
             'name': 'Valid host name',
-            'scope': structure_factories.TestInstanceFactory.get_url(vm)
-        })
+            'scope': structure_factories.TestNewInstanceFactory.get_url(vm)
+        }
+        response = self.client.post(factories.HostFactory.get_list_url(), data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['visible_name'], models.Host.get_visible_name_from_scope(vm))
 

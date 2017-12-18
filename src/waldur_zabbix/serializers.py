@@ -4,12 +4,12 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from nodeconductor.core.fields import MappedChoiceField, JsonField
-from nodeconductor.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
+from waldur_core.core.fields import MappedChoiceField, JsonField
+from waldur_core.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
                                             AugmentedSerializerMixin)
-from nodeconductor.core.utils import datetime_to_timestamp, pwgen
-from nodeconductor.monitoring.utils import get_period
-from nodeconductor.structure import serializers as structure_serializers, models as structure_models
+from waldur_core.core.utils import datetime_to_timestamp, pwgen
+from waldur_core.monitoring.utils import get_period
+from waldur_core.structure import serializers as structure_serializers, models as structure_models
 
 from . import models, apps
 
@@ -49,7 +49,7 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
     items = serializers.SerializerMethodField()
     triggers = serializers.SerializerMethodField()
 
-    class Meta(object):
+    class Meta(structure_serializers.BasePropertySerializer.Meta):
         model = models.Template
         view_name = 'zabbix-template-detail'
         fields = ('url', 'uuid', 'name', 'items', 'triggers', 'settings', 'children', 'parents')
@@ -318,7 +318,8 @@ class NestedUserGroupSerializer(UserGroupSerializer, HyperlinkedRelatedModelSeri
         pass
 
 
-class UserSerializer(AugmentedSerializerMixin, structure_serializers.BasePropertySerializer):
+class UserSerializer(structure_serializers.BasePropertySerializer):
+
     groups = NestedUserGroupSerializer(queryset=models.UserGroup.objects.all(), many=True)
     state = MappedChoiceField(
         choices={v: v for _, v in models.User.States.CHOICES},
