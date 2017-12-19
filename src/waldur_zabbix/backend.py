@@ -15,6 +15,7 @@ from requests.packages.urllib3 import exceptions
 
 from waldur_core.core.utils import datetime_to_timestamp
 from waldur_core.structure import ServiceBackend, ServiceBackendError, log_backend_action
+from waldur_core.structure.utils import update_pulled_fields
 
 from . import models
 
@@ -52,23 +53,6 @@ class QuietSession(requests.Session):
                 return super(QuietSession, self).request(*args, **kwargs)
         else:
             return super(QuietSession, self).request(*args, **kwargs)
-
-
-# XXX: This method is copy-pasted from openstack.backend it should be moved to
-#      core when we will provide final structure for import process.
-def _update_pulled_fields(instance, imported_instance, fields):
-    """ Update instance fields based on imported from backend data.
-
-        Save changes to DB only one or more fields were changed.
-    """
-    modified = False
-    for field in fields:
-        pulled_value = getattr(imported_instance, field)
-        if getattr(instance, field) != pulled_value:
-            setattr(instance, field, pulled_value)
-            modified = True
-    if modified:
-        instance.save()
 
 
 class ZabbixBackend(ServiceBackend):
@@ -852,7 +836,7 @@ class ZabbixBackend(ServiceBackend):
         host.refresh_from_db()
         if host.modified < import_time:
             update_fields = ('name', 'visible_name', 'description', 'error', 'status', 'host_group_name')
-            _update_pulled_fields(host, imported_host, update_fields)
+            update_pulled_fields(host, imported_host, update_fields)
 
         host_templates = set(host.templates.all())
         host.templates.remove(*(host_templates - imported_host_templates))
