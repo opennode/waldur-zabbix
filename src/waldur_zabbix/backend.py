@@ -220,7 +220,7 @@ class ZabbixBackend(ServiceBackend):
         try:
             zabbix_templates = self.api.template.get(
                 output=['name', 'templateid'],
-                selectTriggers=['description', 'triggerid'],
+                selectTriggers=['description', 'triggerid', 'priority'],
                 selectItems=['itemid', 'name', 'key_', 'value_type', 'units', 'history', 'delay'],
                 selectTemplates=['templateid'],
             )
@@ -249,6 +249,7 @@ class ZabbixBackend(ServiceBackend):
             for zabbix_trigger in zabbix_template['triggers']:
                 nc_template.triggers.update_or_create(
                     backend_id=zabbix_trigger['triggerid'],
+                    priority=int(zabbix_trigger['priority']),  # according to Zabbix model it must always be integer
                     settings=nc_template.settings,
                     defaults={'name': zabbix_trigger['description']})
 

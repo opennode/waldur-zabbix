@@ -277,10 +277,11 @@ class TriggerSerializer(structure_serializers.BasePropertySerializer):
         view_name='zabbix-template-detail',
         read_only=True,
         lookup_field='uuid')
+    priority = serializers.IntegerField()
 
     class Meta(structure_serializers.BasePropertySerializer.Meta):
         model = models.Trigger
-        fields = ('url', 'uuid', 'name', 'template')
+        fields = ('url', 'uuid', 'name', 'priority', 'template')
         extra_kwargs = {
             'url': {'lookup_field': 'uuid', 'view_name': 'zabbix-trigger-detail'},
         }
