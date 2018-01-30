@@ -177,6 +177,10 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         scope = validated_data.get('scope')
         interface_ip = validated_data.pop('interface_ip', None) or getattr(scope, 'internal_ips', None)
         if interface_ip:
+            # Note, that we're not supporting multiple network interfaces for single host yet.
+            # IPv6 is not supported yet too.
+            if isinstance(interface_ip, list):
+                interface_ip = interface_ip[0]
             interface_parameters['ip'] = interface_ip
         validated_data['interface_parameters'] = interface_parameters
 

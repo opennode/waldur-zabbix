@@ -1,6 +1,8 @@
+from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.utils.translation import ungettext
+from jsoneditor.forms import JSONEditor
 
 from waldur_core.core.admin import ExecutorAdminAction
 from waldur_core.core.tasks import send_task
@@ -25,8 +27,16 @@ class SlaHistoryAdmin(admin.ModelAdmin):
     list_filter = ('period',)
 
 
+class HostAdminForm(forms.ModelForm):
+    class Meta:
+        widgets = {
+            'interface_parameters': JSONEditor(),
+        }
+
+
 class HostAdmin(structure_admin.ResourceAdmin):
     actions = ['pull_sla', 'pull']
+    form = HostAdminForm
 
     # TODO: Rewrite with executor.
     def pull_sla(self, request, queryset):
