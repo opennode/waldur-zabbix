@@ -808,7 +808,9 @@ class ZabbixBackend(ServiceBackend):
         host.status = backend_host['status']
         host.backend_id = host_backend_id
         if backend_host.get('groups'):
-            host.host_group_name = backend_host['groups'][0]
+            # Host groups list is serialized as in following example:
+            # [{u'internal': u'0', u'flags': u'0', u'groupid': u'15', u'name': u'waldur'}]
+            host.host_group_name = backend_host['groups'][0]['name']
         else:
             host.host_group_name = ''
 
