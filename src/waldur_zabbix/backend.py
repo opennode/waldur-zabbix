@@ -220,7 +220,7 @@ class ZabbixBackend(ServiceBackend):
         try:
             zabbix_templates = self.api.template.get(
                 output=['name', 'templateid'],
-                selectTriggers=['description', 'triggerid'],
+                selectTriggers=['description', 'triggerid', 'priority'],
                 selectItems=['itemid', 'name', 'key_', 'value_type', 'units', 'history', 'delay'],
                 selectTemplates=['templateid'],
             )
@@ -249,6 +249,7 @@ class ZabbixBackend(ServiceBackend):
             for zabbix_trigger in zabbix_template['triggers']:
                 nc_template.triggers.update_or_create(
                     backend_id=zabbix_trigger['triggerid'],
+                    priority=int(zabbix_trigger['priority']),  # according to Zabbix model it must always be integer
                     settings=nc_template.settings,
                     defaults={'name': zabbix_trigger['description']})
 
@@ -807,7 +808,9 @@ class ZabbixBackend(ServiceBackend):
         host.status = backend_host['status']
         host.backend_id = host_backend_id
         if backend_host.get('groups'):
-            host.host_group_name = backend_host['groups'][0]
+            # Host groups list is serialized as in following example:
+            # [{u'internal': u'0', u'flags': u'0', u'groupid': u'15', u'name': u'waldur'}]
+            host.host_group_name = backend_host['groups'][0]['name']
         else:
             host.host_group_name = ''
 

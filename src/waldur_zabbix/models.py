@@ -143,6 +143,8 @@ class Item(models.Model):
 @python_2_unicode_compatible
 class Trigger(structure_models.ServiceProperty):
     template = models.ForeignKey(Template, related_name='triggers')
+    # https://www.zabbix.com/documentation/3.4/manual/api/reference/trigger/object
+    priority = models.IntegerField(default=0)
 
     @classmethod
     def get_url_name(cls):
