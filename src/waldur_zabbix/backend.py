@@ -17,7 +17,7 @@ from waldur_core.core.utils import datetime_to_timestamp
 from waldur_core.structure import ServiceBackend, ServiceBackendError, log_backend_action
 from waldur_core.structure.utils import update_pulled_fields
 
-from . import models
+from . import models, utils
 
 
 logger = logging.getLogger(__name__)
@@ -264,8 +264,8 @@ class ZabbixBackend(ServiceBackend):
                     'key': zabbix_item['key_'],
                     'value_type': int(zabbix_item['value_type']),
                     'units': zabbix_item['units'],
-                    'history': int(zabbix_item['history']),
-                    'delay': int(zabbix_item['delay'])
+                    'history': utils.parse_time(zabbix_item['history']),
+                    'delay': utils.parse_time(zabbix_item['delay'])
                 }
 
                 nc_item, created = nc_template.items.get_or_create(
