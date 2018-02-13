@@ -13,7 +13,7 @@ from django.utils import six, timezone
 from requests.exceptions import RequestException
 from requests.packages.urllib3 import exceptions
 
-from waldur_core.core.utils import datetime_to_timestamp
+from waldur_core.core.utils import datetime_to_timestamp, timestamp_to_datetime
 from waldur_core.structure import ServiceBackend, ServiceBackendError, log_backend_action
 from waldur_core.structure.utils import update_pulled_fields
 
@@ -844,3 +844,42 @@ class ZabbixBackend(ServiceBackend):
         host_templates = set(host.templates.all())
         host.templates.remove(*(host_templates - imported_host_templates))
         host.templates.add(*(imported_host_templates - host_templates))
+
+    def get_trigger_status(self, query):
+        request = {}
+
+        if 'changed_after' in query:
+            request['lastChangeSince'] = datetime_to_timestamp(query['changed_after'])
+
+        if 'changed_before' in query:
+            request['lastChangeTill'] = datetime_to_timestamp(query['changed_before'])
+
+        if 'min_priority' in query:
+            request['min_severity'] = query['min_priority']
+
+        if 'acknowledge_status' in query:
+            acknowledge_status = query['acknowledge_status']
+            Status = models.Trigger.AcknowledgeStatus
+            status_mapping = {
+                Status.SOME_EVENTS_UNACKNOWLEDGED: 'withUnacknowledgedEvents',
+                Status.LAST_EVENT_UNACKNOWLEDGED: 'withLastEventUnacknowledged',
+                Status.ALL_EVENTS_ACKNOWLEDGED: 'withAcknowledgedEvents',
+            }
+            if acknowledge_status in status_mapping:
+                key = status_mapping[acknowledge_status]
+                request[key] = 1
+
+        try:
+            backend_triggers = self.api.trigger.get(**request)
+            return map(self._parse_trigger, backend_triggers)
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            logger.exception('Unable to fetch Zabbix triggers')
+            six.reraise(ZabbixBackendError, e)
+
+    def _parse_trigger(self, backend_trigger):
+        trigger = {}
+        trigger['changed'] = timestamp_to_datetime(backend_trigger['lastchange'])
+        update_fields = ('priority', 'description', 'expression', 'comments', 'error', 'value')
+        for field in update_fields:
+            trigger[field] = backend_trigger[field]
+        return trigger

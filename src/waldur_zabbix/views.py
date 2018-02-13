@@ -40,6 +40,19 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
             executors.ServiceSettingsPasswordResetExecutor.execute(service.settings, password=password)
             return Response({'password': password})
 
+    @detail_route(methods=['GET'])
+    def trigger_status(self, request, uuid):
+        serializer = serializers.TriggerRequestSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        query = serializer.validated_data
+
+        service = self.get_object()
+        backend = service.get_backend()
+        backend_triggers = backend.get_trigger_status(query)
+        response_serializer = serializers.TriggerResponseSerializer(
+            instance=backend_triggers, many=True)
+        return Response(response_serializer.data)
+
 
 class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkViewSet):
     queryset = models.ZabbixServiceProjectLink.objects.all()
