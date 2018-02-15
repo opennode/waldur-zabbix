@@ -848,6 +848,12 @@ class ZabbixBackend(ServiceBackend):
     def get_trigger_status(self, query):
         request = {}
 
+        if 'host_id' in query:
+            request['hostids'] = query['host_id']
+
+        if 'host_name' in query:
+            request['host'] = query['host_name']
+
         if 'changed_after' in query:
             request['lastChangeSince'] = datetime_to_timestamp(query['changed_after'])
 

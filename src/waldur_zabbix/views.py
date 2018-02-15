@@ -22,6 +22,8 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
     def get_serializer_class(self):
         if self.action == 'credentials':
             return serializers.UserSerializer
+        elif self.action == 'trigger_status':
+            return serializers.TriggerRequestSerializer
         return super(ZabbixServiceViewSet, self).get_serializer_class()
 
     @detail_route(methods=['GET', 'POST'])
@@ -42,7 +44,8 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
 
     @detail_route(methods=['GET'])
     def trigger_status(self, request, uuid):
-        serializer = serializers.TriggerRequestSerializer(data=request.query_params)
+        serializer_class = self.get_serializer_class()
+        serializer = serializer_class(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         query = serializer.validated_data
 
