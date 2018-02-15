@@ -848,6 +848,8 @@ class ZabbixBackend(ServiceBackend):
     def get_trigger_status(self, query):
         request = {}
 
+        request['selectHosts'] = 1
+
         if 'host_id' in query:
             request['hostids'] = query['host_id']
 
@@ -885,6 +887,7 @@ class ZabbixBackend(ServiceBackend):
     def _parse_trigger(self, backend_trigger):
         trigger = {}
         trigger['changed'] = timestamp_to_datetime(backend_trigger['lastchange'])
+        trigger['hosts'] = [host['hostid'] for host in backend_trigger['hosts']]
         update_fields = ('priority', 'description', 'expression', 'comments', 'error', 'value')
         for field in update_fields:
             trigger[field] = backend_trigger[field]

@@ -404,3 +404,4 @@ class TriggerResponseSerializer(serializers.Serializer):
     comments = serializers.ReadOnlyField()
     error = serializers.ReadOnlyField()
     value = serializers.IntegerField()
+    hosts = serializers.ReadOnlyField()
