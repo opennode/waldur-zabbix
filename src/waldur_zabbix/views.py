@@ -22,6 +22,8 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
     def get_serializer_class(self):
         if self.action == 'credentials':
             return serializers.UserSerializer
+        elif self.action == 'trigger_status':
+            return serializers.TriggerRequestSerializer
         return super(ZabbixServiceViewSet, self).get_serializer_class()
 
     @detail_route(methods=['GET', 'POST'])
@@ -39,6 +41,20 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
             password = pwgen()
             executors.ServiceSettingsPasswordResetExecutor.execute(service.settings, password=password)
             return Response({'password': password})
+
+    @detail_route(methods=['GET'])
+    def trigger_status(self, request, uuid):
+        serializer_class = self.get_serializer_class()
+        serializer = serializer_class(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        query = serializer.validated_data
+
+        service = self.get_object()
+        backend = service.get_backend()
+        backend_triggers = backend.get_trigger_status(query)
+        response_serializer = serializers.TriggerResponseSerializer(
+            instance=backend_triggers, many=True)
+        return Response(response_serializer.data)
 
 
 class ZabbixServiceProjectLinkViewSet(structure_views.BaseServiceProjectLinkViewSet):

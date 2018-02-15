@@ -146,6 +146,34 @@ class Trigger(structure_models.ServiceProperty):
     # https://www.zabbix.com/documentation/3.4/manual/api/reference/trigger/object
     priority = models.IntegerField(default=0)
 
+    class Priority:
+        DEFAULT = 0
+        INFORMATION = 1
+        WARNING = 2
+        AVERAGE = 3
+        HIGH = 4
+        DISASTER = 5
+
+        CHOICES = (
+            (DEFAULT, 'Default'),
+            (INFORMATION, 'Information'),
+            (WARNING, 'Warning'),
+            (AVERAGE, 'Average'),
+            (HIGH, 'High'),
+            (DISASTER, 'Disaster'),
+        )
+
+    class AcknowledgeStatus:
+        SOME_EVENTS_UNACKNOWLEDGED = 1
+        LAST_EVENT_UNACKNOWLEDGED = 2
+        ALL_EVENTS_ACKNOWLEDGED = 3
+
+        CHOICES = (
+            (SOME_EVENTS_UNACKNOWLEDGED, 'Some events unacknowledged'),
+            (LAST_EVENT_UNACKNOWLEDGED, 'Last event unacknowledged'),
+            (ALL_EVENTS_ACKNOWLEDGED, 'All events unacknowledged'),
+        )
+
     @classmethod
     def get_url_name(cls):
         return 'zabbix-trigger'

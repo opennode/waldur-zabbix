@@ -5,8 +5,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from waldur_core.core.fields import MappedChoiceField, JsonField
-from waldur_core.core.serializers import (GenericRelatedField, HyperlinkedRelatedModelSerializer,
-                                            AugmentedSerializerMixin)
+from waldur_core.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
 from waldur_core.core.utils import datetime_to_timestamp, pwgen
 from waldur_core.monitoring.utils import get_period
 from waldur_core.structure import serializers as structure_serializers, models as structure_models
@@ -386,3 +385,23 @@ class UserSerializer(structure_serializers.BasePropertySerializer):
         user.groups.remove(*(old_groups - new_groups))
         user.groups.add(*(new_groups - old_groups))
         return user
+
+
+class TriggerRequestSerializer(serializers.Serializer):
+    changed_before = serializers.DateTimeField(required=False)
+    changed_after = serializers.DateTimeField(required=False)
+    min_priority = serializers.ChoiceField(choices=models.Trigger.Priority.CHOICES, required=False)
+    acknowledge_status = serializers.ChoiceField(choices=models.Trigger.AcknowledgeStatus.CHOICES, required=False)
+    host_name = serializers.CharField(required=False)
+    host_id = serializers.CharField(required=False)
+
+
+class TriggerResponseSerializer(serializers.Serializer):
+    changed = serializers.DateTimeField()
+    priority = serializers.IntegerField()
+    description = serializers.ReadOnlyField()
+    expression = serializers.ReadOnlyField()
+    comments = serializers.ReadOnlyField()
+    error = serializers.ReadOnlyField()
+    value = serializers.IntegerField()
+    hosts = serializers.ReadOnlyField()
