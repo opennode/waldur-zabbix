@@ -1,7 +1,7 @@
 Name: waldur-zabbix
 Summary: Zabbix plugin for Waldur
 Group: Development/Libraries
-Version: 0.7.3
+Version: 0.7.4
 Release: 1.el7
 License: MIT
 Url: http://waldur.com
@@ -36,6 +36,9 @@ rm -rf %{buildroot}
 %{python_sitelib}/*
 
 %changelog
+* Fri Feb 16 2018 Jenkins <jenkins@opennodecloud.com> - 0.7.4-1.el7
+- New upstream release
+
 * Sun Feb 11 2018 Jenkins <jenkins@opennodecloud.com> - 0.7.3-1.el7
 - New upstream release
 
