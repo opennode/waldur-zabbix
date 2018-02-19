@@ -862,6 +862,9 @@ class ZabbixBackend(ServiceBackend):
         if 'changed_before' in query:
             request['lastChangeTill'] = datetime_to_timestamp(query['changed_before'])
 
+        if 'min_priority' in query:
+            request['min_severity'] = query['min_priority']
+
         if 'priority' in query and len(query['priority']) > 0:
             request['filter'] = {'priority': list(query['priority'])}
 

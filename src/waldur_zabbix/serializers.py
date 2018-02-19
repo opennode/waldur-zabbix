@@ -390,6 +390,7 @@ class UserSerializer(structure_serializers.BasePropertySerializer):
 class TriggerRequestSerializer(serializers.Serializer):
     changed_before = serializers.DateTimeField(required=False)
     changed_after = serializers.DateTimeField(required=False)
+    min_priority = serializers.ChoiceField(choices=models.Trigger.Priority.CHOICES, required=False)
     priority = serializers.MultipleChoiceField(choices=models.Trigger.Priority.CHOICES, required=False)
     acknowledge_status = serializers.ChoiceField(choices=models.Trigger.AcknowledgeStatus.CHOICES, required=False)
     host_name = serializers.CharField(required=False)
