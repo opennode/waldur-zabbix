@@ -865,6 +865,9 @@ class ZabbixBackend(ServiceBackend):
         if 'min_priority' in query:
             request['min_severity'] = query['min_priority']
 
+        if 'priority' in query and len(query['priority']) > 0:
+            request['filter'] = {'priority': list(query['priority'])}
+
         if 'acknowledge_status' in query:
             acknowledge_status = query['acknowledge_status']
             Status = models.Trigger.AcknowledgeStatus
