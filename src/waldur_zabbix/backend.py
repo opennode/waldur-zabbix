@@ -845,7 +845,7 @@ class ZabbixBackend(ServiceBackend):
         host.templates.remove(*(host_templates - imported_host_templates))
         host.templates.add(*(imported_host_templates - host_templates))
 
-    def get_trigger_status(self, query):
+    def get_trigger_request(self, query):
         request = {}
 
         request['selectHosts'] = 1
@@ -879,7 +879,10 @@ class ZabbixBackend(ServiceBackend):
             if acknowledge_status in status_mapping:
                 key = status_mapping[acknowledge_status]
                 request[key] = 1
+        return request
 
+    def get_trigger_status(self, query):
+        request = self.get_trigger_request(query)
         try:
             backend_triggers = self.api.trigger.get(**request)
             return map(self._parse_trigger, backend_triggers)
@@ -895,3 +898,11 @@ class ZabbixBackend(ServiceBackend):
         for field in update_fields:
             trigger[field] = backend_trigger[field]
         return trigger
+
+    def get_trigger_count(self, query):
+        request = self.get_trigger_request(query)
+        try:
+            return int(self.api.trigger.get(countOutput=True, **request))
+        except (pyzabbix.ZabbixAPIException, RequestException) as e:
+            logger.exception('Unable to fetch Zabbix triggers')
+            six.reraise(ZabbixBackendError, e)

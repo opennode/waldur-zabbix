@@ -42,7 +42,7 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
             executors.ServiceSettingsPasswordResetExecutor.execute(service.settings, password=password)
             return Response({'password': password})
 
-    @detail_route(methods=['GET'])
+    @detail_route(methods=['GET', 'HEAD'])
     def trigger_status(self, request, uuid):
         serializer_class = self.get_serializer_class()
         serializer = serializer_class(data=request.query_params)
@@ -51,6 +51,10 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
 
         service = self.get_object()
         backend = service.get_backend()
+        if request.method == 'HEAD':
+            return Response({
+                'count': backend.get_trigger_count(query)
+            })
         backend_triggers = backend.get_trigger_status(query)
         response_serializer = serializers.TriggerResponseSerializer(
             instance=backend_triggers, many=True)
