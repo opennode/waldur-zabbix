@@ -52,9 +52,10 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
         service = self.get_object()
         backend = service.get_backend()
         if request.method == 'HEAD':
-            return Response({
-                'count': backend.get_trigger_count(query)
-            })
+            headers = {
+                'X-Result-Count': backend.get_trigger_count(query),
+            }
+            return Response(headers=headers)
         backend_triggers = backend.get_trigger_status(query)
         response_serializer = serializers.TriggerResponseSerializer(
             instance=backend_triggers, many=True)
