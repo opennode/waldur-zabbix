@@ -419,5 +419,4 @@ class TriggerResponseSerializer(serializers.Serializer):
     value = serializers.IntegerField()
     hosts = serializers.ReadOnlyField()
     backend_id = serializers.ReadOnlyField()
-    has_events = serializers.ReadOnlyField()
-    event_count = serializers.ReadOnlyField()
+    event_count = serializers.IntegerField()

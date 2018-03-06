@@ -57,14 +57,6 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
             }
             return Response(headers=headers)
 
-        # value = request.query_params.get('include_events_count')
-        # boolean_field = forms.NullBooleanField()
-        #
-        # try:
-        #     include_events_count = boolean_field.to_python(value)
-        # except exceptions.ValidationError:
-        #     include_events_count = None
-
         backend_triggers = backend.get_trigger_status(query)
         response_serializer = serializers.TriggerResponseSerializer(
             instance=backend_triggers, many=True)
