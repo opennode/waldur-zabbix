@@ -881,20 +881,37 @@ class ZabbixBackend(ServiceBackend):
                 request[key] = 1
         return request
 
-    def get_trigger_status(self, query):
+    def get_trigger_status(self, query, events=False):
         request = self.get_trigger_request(query)
         try:
             backend_triggers = self.api.trigger.get(**request)
-            return map(self._parse_trigger, backend_triggers)
+            backend_events = None
+            if events:
+                objectids = map(lambda t: t['triggerid'], backend_triggers)
+                backend_events = self.api.event.get(objectids=objectids)
+
+            triggers = []
+
+            for trigger in backend_triggers:
+                triggers.append(self._parse_trigger(trigger, backend_events))
+
+            return triggers
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             logger.exception('Unable to fetch Zabbix triggers')
             six.reraise(ZabbixBackendError, e)
 
-    def _parse_trigger(self, backend_trigger):
+    def _parse_trigger(self, backend_trigger, backend_events=None):
         trigger = {}
         trigger['changed'] = timestamp_to_datetime(backend_trigger['lastchange'])
         trigger['hosts'] = [host['hostid'] for host in backend_trigger['hosts']]
         trigger['backend_id'] = backend_trigger['triggerid']
+        trigger['has_events'] = None
+        trigger['event_count'] = None
+        if backend_events:
+            events = filter(lambda e: e['objectid'] == trigger['backend_id'], backend_events)
+            trigger['has_events'] = bool(events)
+            trigger['event_count'] = len(events)
+
         update_fields = ('priority', 'description', 'expression', 'comments', 'error', 'value')
         for field in update_fields:
             trigger[field] = backend_trigger[field]

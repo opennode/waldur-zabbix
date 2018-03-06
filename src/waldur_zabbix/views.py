@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+from django import forms
 from rest_framework import status, exceptions, response
 from rest_framework.decorators import detail_route, list_route
 from rest_framework.generics import get_object_or_404
@@ -56,7 +57,16 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
                 'X-Result-Count': backend.get_trigger_count(query),
             }
             return Response(headers=headers)
-        backend_triggers = backend.get_trigger_status(query)
+
+        value = request.query_params.get('include_events_count')
+        boolean_field = forms.NullBooleanField()
+
+        try:
+            include_events_count = boolean_field.to_python(value)
+        except exceptions.ValidationError:
+            include_events_count = None
+
+        backend_triggers = backend.get_trigger_status(query, include_events_count)
         response_serializer = serializers.TriggerResponseSerializer(
             instance=backend_triggers, many=True)
         return Response(response_serializer.data)
