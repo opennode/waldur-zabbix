@@ -881,14 +881,19 @@ class ZabbixBackend(ServiceBackend):
                 request[key] = 1
         return request
 
-    def get_trigger_status(self, query, events=False):
+    def get_trigger_status(self, query, get_events_count=False):
         request = self.get_trigger_request(query)
         try:
             backend_triggers = self.api.trigger.get(**request)
             backend_events = None
-            if events:
+            if get_events_count:
                 objectids = map(lambda t: t['triggerid'], backend_triggers)
-                backend_events = self.api.event.get(objectids=objectids)
+                backend_events = self.api.event.get(objectids=objectids,
+                                                    acknowledged=0,
+                                                    countOutput=True,
+                                                    groupCount=True,
+                                                    value = '1')  # value == 1 if event is problem
+                # https://www.zabbix.com/documentation/3.4/manual/api/reference/event/object
 
             triggers = []
 
@@ -910,7 +915,7 @@ class ZabbixBackend(ServiceBackend):
         if backend_events:
             events = filter(lambda e: e['objectid'] == trigger['backend_id'], backend_events)
             trigger['has_events'] = bool(events)
-            trigger['event_count'] = len(events)
+            trigger['event_count'] = 0 if not events else events[0]['rowscount']
 
         update_fields = ('priority', 'description', 'expression', 'comments', 'error', 'value')
         for field in update_fields:
