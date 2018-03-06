@@ -894,6 +894,7 @@ class ZabbixBackend(ServiceBackend):
         trigger = {}
         trigger['changed'] = timestamp_to_datetime(backend_trigger['lastchange'])
         trigger['hosts'] = [host['hostid'] for host in backend_trigger['hosts']]
+        trigger['backend_id'] = backend_trigger['triggerid']
         update_fields = ('priority', 'description', 'expression', 'comments', 'error', 'value')
         for field in update_fields:
             trigger[field] = backend_trigger[field]

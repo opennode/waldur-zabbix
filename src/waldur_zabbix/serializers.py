@@ -406,3 +406,4 @@ class TriggerResponseSerializer(serializers.Serializer):
     error = serializers.ReadOnlyField()
     value = serializers.IntegerField()
     hosts = serializers.ReadOnlyField()
+    backend_id = serializers.IntegerField()
