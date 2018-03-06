@@ -881,8 +881,9 @@ class ZabbixBackend(ServiceBackend):
                 request[key] = 1
         return request
 
-    def get_trigger_status(self, query, get_events_count=False):
+    def get_trigger_status(self, query):
         request = self.get_trigger_request(query)
+        get_events_count = query.get('include_events_count')
         try:
             backend_triggers = self.api.trigger.get(**request)
             backend_events = None
@@ -910,11 +911,9 @@ class ZabbixBackend(ServiceBackend):
         trigger['changed'] = timestamp_to_datetime(backend_trigger['lastchange'])
         trigger['hosts'] = [host['hostid'] for host in backend_trigger['hosts']]
         trigger['backend_id'] = backend_trigger['triggerid']
-        trigger['has_events'] = None
         trigger['event_count'] = None
         if backend_events:
             events = filter(lambda e: e['objectid'] == trigger['backend_id'], backend_events)
-            trigger['has_events'] = bool(events)
             trigger['event_count'] = 0 if not events else events[0]['rowscount']
 
         update_fields = ('priority', 'description', 'expression', 'comments', 'error', 'value')
