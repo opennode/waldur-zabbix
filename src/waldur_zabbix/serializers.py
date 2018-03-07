@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django import forms
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers, exceptions
@@ -411,12 +412,11 @@ class TriggerRequestSerializer(serializers.Serializer):
 
 class TriggerResponseSerializer(serializers.Serializer):
     changed = serializers.DateTimeField()
-    priority = serializers.IntegerField()
-    description = serializers.ReadOnlyField()
-    expression = serializers.ReadOnlyField()
-    comments = serializers.ReadOnlyField()
-    error = serializers.ReadOnlyField()
-    value = serializers.IntegerField()
     hosts = serializers.ReadOnlyField()
-    backend_id = serializers.ReadOnlyField()
     event_count = serializers.IntegerField()
+
+    def get_fields(self):
+        fields = super(TriggerResponseSerializer, self).get_fields()
+        for field in settings.WALDUR_ZABBIX['TRIGGER_FIELDS']:
+            fields[field[0]] = getattr(serializers, field[2])()
+        return fields

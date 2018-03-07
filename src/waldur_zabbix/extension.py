@@ -10,6 +10,19 @@ class ZabbixExtension(WaldurExtension):
                 'SMS_EMAIL_FROM': None,
                 'SMS_EMAIL_RCPT': None,
             },
+            'TRIGGER_FIELDS': (
+                # matching trigger object fields and TriggerResponseSerializer fields
+                # https://www.zabbix.com/documentation/3.4/manual/api/reference/trigger/object
+                # (serializer field name, trigger object field, serializer field type)
+                ('backend_id', 'triggerid', 'ReadOnlyField'),
+                ('last_change', 'lastchange', 'IntegerField'),
+                ('priority', 'priority', 'IntegerField'),
+                ('description', 'description', 'ReadOnlyField'),
+                ('expression', 'expression', 'ReadOnlyField'),
+                ('comments', 'comments', 'ReadOnlyField'),
+                ('error', 'error', 'ReadOnlyField'),
+                ('value', 'value', 'IntegerField'),
+            )
         }
 
     @staticmethod
