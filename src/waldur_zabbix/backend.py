@@ -893,7 +893,7 @@ class ZabbixBackend(ServiceBackend):
                                                     acknowledged=0,
                                                     countOutput=True,
                                                     groupCount=True,
-                                                    value = '1')  # value == 1 if event is problem
+                                                    value = '1')  # 1 means that trigger has a problem
                 # https://www.zabbix.com/documentation/3.4/manual/api/reference/event/object
 
             triggers = []
