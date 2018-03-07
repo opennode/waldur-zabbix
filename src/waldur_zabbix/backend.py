@@ -912,7 +912,7 @@ class ZabbixBackend(ServiceBackend):
         trigger['hosts'] = [host['hostid'] for host in backend_trigger['hosts']]
         trigger['backend_id'] = backend_trigger['triggerid']
         trigger['event_count'] = None
-        if backend_events:
+        if backend_events is not None:
             events = filter(lambda e: e['objectid'] == trigger['backend_id'], backend_events)
             trigger['event_count'] = 0 if not events else events[0]['rowscount']
 
