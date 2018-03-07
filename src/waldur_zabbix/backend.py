@@ -893,7 +893,7 @@ class ZabbixBackend(ServiceBackend):
                                                     acknowledged=0,
                                                     countOutput=True,
                                                     groupCount=True,
-                                                    value = '1')  # 1 means that trigger has a problem
+                                                    value='1')  # 1 means that trigger has a problem
                 # https://www.zabbix.com/documentation/3.4/manual/api/reference/event/object
 
             triggers = []
@@ -910,15 +910,15 @@ class ZabbixBackend(ServiceBackend):
         trigger = {}
         trigger['changed'] = timestamp_to_datetime(backend_trigger['lastchange'])
         trigger['hosts'] = [host['hostid'] for host in backend_trigger['hosts']]
-        trigger['backend_id'] = backend_trigger['triggerid']
+
+        for field in django_settings.WALDUR_ZABBIX['TRIGGER_FIELDS']:
+            trigger[field[0]] = backend_trigger[field[1]]
+
         trigger['event_count'] = None
         if backend_events is not None:
             events = filter(lambda e: e['objectid'] == trigger['backend_id'], backend_events)
             trigger['event_count'] = 0 if not events else events[0]['rowscount']
 
-        update_fields = ('priority', 'description', 'expression', 'comments', 'error', 'value')
-        for field in update_fields:
-            trigger[field] = backend_trigger[field]
         return trigger
 
     def get_trigger_count(self, query):
