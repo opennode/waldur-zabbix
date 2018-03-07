@@ -1,8 +1,9 @@
 from datetime import timedelta
 
+from django import forms
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import serializers
+from rest_framework import serializers, exceptions
 
 from waldur_core.core.fields import MappedChoiceField, JsonField
 from waldur_core.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
@@ -395,6 +396,17 @@ class TriggerRequestSerializer(serializers.Serializer):
     acknowledge_status = serializers.ChoiceField(choices=models.Trigger.AcknowledgeStatus.CHOICES, required=False)
     host_name = serializers.CharField(required=False)
     host_id = serializers.CharField(required=False)
+    
+    def validate(self, attrs):
+        events_count = self.initial_data.get('include_events_count')
+        boolean_field = forms.NullBooleanField()
+        try:
+            events_count = boolean_field.to_python(events_count)
+        except exceptions.ValidationError:
+            events_count = None
+
+        attrs['include_events_count'] = events_count
+        return attrs
 
 
 class TriggerResponseSerializer(serializers.Serializer):
@@ -406,3 +418,5 @@ class TriggerResponseSerializer(serializers.Serializer):
     error = serializers.ReadOnlyField()
     value = serializers.IntegerField()
     hosts = serializers.ReadOnlyField()
+    backend_id = serializers.ReadOnlyField()
+    event_count = serializers.IntegerField()

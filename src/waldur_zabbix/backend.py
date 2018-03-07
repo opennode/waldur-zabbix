@@ -883,17 +883,39 @@ class ZabbixBackend(ServiceBackend):
 
     def get_trigger_status(self, query):
         request = self.get_trigger_request(query)
+        get_events_count = query.get('include_events_count')
         try:
             backend_triggers = self.api.trigger.get(**request)
-            return map(self._parse_trigger, backend_triggers)
+            backend_events = None
+            if get_events_count:
+                objectids = map(lambda t: t['triggerid'], backend_triggers)
+                backend_events = self.api.event.get(objectids=objectids,
+                                                    acknowledged=0,
+                                                    countOutput=True,
+                                                    groupCount=True,
+                                                    value = '1')  # value == 1 if event is problem
+                # https://www.zabbix.com/documentation/3.4/manual/api/reference/event/object
+
+            triggers = []
+
+            for trigger in backend_triggers:
+                triggers.append(self._parse_trigger(trigger, backend_events))
+
+            return triggers
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             logger.exception('Unable to fetch Zabbix triggers')
             six.reraise(ZabbixBackendError, e)
 
-    def _parse_trigger(self, backend_trigger):
+    def _parse_trigger(self, backend_trigger, backend_events=None):
         trigger = {}
         trigger['changed'] = timestamp_to_datetime(backend_trigger['lastchange'])
         trigger['hosts'] = [host['hostid'] for host in backend_trigger['hosts']]
+        trigger['backend_id'] = backend_trigger['triggerid']
+        trigger['event_count'] = None
+        if backend_events:
+            events = filter(lambda e: e['objectid'] == trigger['backend_id'], backend_events)
+            trigger['event_count'] = 0 if not events else events[0]['rowscount']
+
         update_fields = ('priority', 'description', 'expression', 'comments', 'error', 'value')
         for field in update_fields:
             trigger[field] = backend_trigger[field]
