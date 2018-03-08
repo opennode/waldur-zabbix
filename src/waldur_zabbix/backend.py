@@ -849,6 +849,7 @@ class ZabbixBackend(ServiceBackend):
         request = {}
 
         request['selectHosts'] = 1
+        request['active'] = 1
 
         if 'host_id' in query:
             request['hostids'] = query['host_id']
@@ -884,8 +885,10 @@ class ZabbixBackend(ServiceBackend):
     def get_trigger_status(self, query):
         request = self.get_trigger_request(query)
         get_events_count = query.get('include_events_count')
+        get_trigger_hosts = query.get('include_trigger_hosts')
         try:
             backend_triggers = self.api.trigger.get(**request)
+
             backend_events = None
             if get_events_count:
                 objectids = map(lambda t: t['triggerid'], backend_triggers)
@@ -896,23 +899,43 @@ class ZabbixBackend(ServiceBackend):
                                                     value='1')  # 1 means that trigger has a problem
                 # https://www.zabbix.com/documentation/3.4/manual/api/reference/event/object
 
+            trigger_hosts = None
+            if get_trigger_hosts:
+                objectids = map(lambda t: t['triggerid'], backend_triggers)
+                trigger_hosts = self.api.host.get(triggerids=objectids)
+
             triggers = []
 
             for trigger in backend_triggers:
-                triggers.append(self._parse_trigger(trigger, backend_events))
+                triggers.append(self._parse_trigger(trigger, backend_events, trigger_hosts))
 
             return triggers
         except (pyzabbix.ZabbixAPIException, RequestException) as e:
             logger.exception('Unable to fetch Zabbix triggers')
             six.reraise(ZabbixBackendError, e)
 
-    def _parse_trigger(self, backend_trigger, backend_events=None):
+    def _parse_trigger(self, backend_trigger, backend_events=None, trigger_hosts=None):
         trigger = {}
-        trigger['changed'] = timestamp_to_datetime(backend_trigger['lastchange'])
-        trigger['hosts'] = [host['hostid'] for host in backend_trigger['hosts']]
 
         for field in django_settings.WALDUR_ZABBIX['TRIGGER_FIELDS']:
             trigger[field[0]] = backend_trigger[field[1]]
+
+        trigger['changed'] = timestamp_to_datetime(backend_trigger['lastchange'])
+        trigger['hosts'] = []
+
+        for host in backend_trigger['hosts']:
+            host_id = host['hostid']
+
+            if trigger_hosts is not None:
+                host_name = filter(lambda h: h['hostid'] == host_id, trigger_hosts)
+                if host_name:
+                    host_name = host_name[0]['host']
+                else:
+                    host_name = ''
+            else:
+                host_name = None
+
+            trigger['hosts'].append({'id': host_id, 'name': host_name})
 
         trigger['event_count'] = None
         if backend_events is not None:

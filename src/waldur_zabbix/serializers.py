@@ -16,7 +16,6 @@ from . import models, apps
 
 
 class ServiceSerializer(structure_serializers.BaseServiceSerializer):
-
     SERVICE_ACCOUNT_FIELDS = {
         'backend_url': 'Zabbix API URL (e.g. http://example.com/zabbix/api_jsonrpc.php)',
         'username': 'Zabbix user username (e.g. admin)',
@@ -36,7 +35,6 @@ class ServiceSerializer(structure_serializers.BaseServiceSerializer):
 
 
 class ServiceProjectLinkSerializer(structure_serializers.BaseServiceProjectLinkSerializer):
-
     class Meta(structure_serializers.BaseServiceProjectLinkSerializer.Meta):
         model = models.ZabbixServiceProjectLink
         view_name = 'zabbix-spl-detail'
@@ -46,7 +44,6 @@ class ServiceProjectLinkSerializer(structure_serializers.BaseServiceProjectLinkS
 
 
 class TemplateSerializer(structure_serializers.BasePropertySerializer):
-
     items = serializers.SerializerMethodField()
     triggers = serializers.SerializerMethodField()
 
@@ -72,7 +69,6 @@ class TemplateSerializer(structure_serializers.BasePropertySerializer):
 
 
 class NestedTemplateSerializer(TemplateSerializer, HyperlinkedRelatedModelSerializer):
-
     class Meta(TemplateSerializer.Meta):
         pass
 
@@ -136,8 +132,8 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
             spl = attrs['service_project_link']
             if models.Host.objects.filter(
-                service_project_link__service__settings=spl.service.settings,
-                visible_name=attrs['visible_name']
+                    service_project_link__service__settings=spl.service.settings,
+                    visible_name=attrs['visible_name']
             ).exists():
                 raise serializers.ValidationError({'visible_name': 'Visible name should be unique.'})
 
@@ -325,7 +321,6 @@ class NestedUserGroupSerializer(UserGroupSerializer, HyperlinkedRelatedModelSeri
 
 
 class UserSerializer(structure_serializers.BasePropertySerializer):
-
     groups = NestedUserGroupSerializer(queryset=models.UserGroup.objects.all(), many=True)
     state = MappedChoiceField(
         choices={v: v for _, v in models.User.States.CHOICES},
@@ -351,7 +346,8 @@ class UserSerializer(structure_serializers.BasePropertySerializer):
         }
 
     def get_password(self, user):
-        show_password = (self.context['request'].method == 'POST' and user is None) or user.type == models.User.Types.DEFAULT
+        show_password = (self.context[
+                             'request'].method == 'POST' and user is None) or user.type == models.User.Types.DEFAULT
         return user.password if show_password else None
 
     def get_fields(self):
@@ -397,17 +393,21 @@ class TriggerRequestSerializer(serializers.Serializer):
     acknowledge_status = serializers.ChoiceField(choices=models.Trigger.AcknowledgeStatus.CHOICES, required=False)
     host_name = serializers.CharField(required=False)
     host_id = serializers.CharField(required=False)
-    
+
     def validate(self, attrs):
-        events_count = self.initial_data.get('include_events_count')
+        self._add_field_from_initial_data(attrs, 'include_events_count')
+        self._add_field_from_initial_data(attrs, 'include_trigger_hosts')
+        return attrs
+
+    def _add_field_from_initial_data(self, attrs, name):
+        param = self.initial_data.get(name)
         boolean_field = forms.NullBooleanField()
         try:
-            events_count = boolean_field.to_python(events_count)
+            param = boolean_field.to_python(param)
         except exceptions.ValidationError:
-            events_count = None
+            param = None
 
-        attrs['include_events_count'] = events_count
-        return attrs
+        attrs[name] = param
 
 
 class TriggerResponseSerializer(serializers.Serializer):
