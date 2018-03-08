@@ -849,6 +849,7 @@ class ZabbixBackend(ServiceBackend):
         request = {}
 
         request['selectHosts'] = 1
+        request['active'] = 1
 
         if 'host_id' in query:
             request['hostids'] = query['host_id']
