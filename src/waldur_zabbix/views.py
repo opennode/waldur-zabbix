@@ -56,6 +56,7 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
                 'X-Result-Count': backend.get_trigger_count(query),
             }
             return Response(headers=headers)
+
         backend_triggers = backend.get_trigger_status(query)
         response_serializer = serializers.TriggerResponseSerializer(
             instance=backend_triggers, many=True)
