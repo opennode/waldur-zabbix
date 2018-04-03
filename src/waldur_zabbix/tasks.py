@@ -168,7 +168,6 @@ def update_host_scope_monitoring_items(host_uuid, zabbix_item_key, monitoring_it
 
 
 @shared_task(max_retries=60, default_retry_delay=60)
-#@core_tasks.retry_if_false
 def after_creation_monitoring_item_update(host_uuid, config):
     item_value = update_host_scope_monitoring_items(
         host_uuid, config['zabbix_item_key'], config['monitoring_item_name'])

@@ -346,8 +346,8 @@ class UserSerializer(structure_serializers.BasePropertySerializer):
         }
 
     def get_password(self, user):
-        show_password = (self.context[
-                             'request'].method == 'POST' and user is None) or user.type == models.User.Types.DEFAULT
+        show_password = ((self.context['request'].method == 'POST' and user is None) or
+                         user.type == models.User.Types.DEFAULT)
         return user.password if show_password else None
 
     def get_fields(self):
