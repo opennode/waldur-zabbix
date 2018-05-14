@@ -61,6 +61,11 @@ class ZabbixServiceViewSet(structure_views.BaseServiceViewSet):
         backend_triggers = backend.get_trigger_status(query)
         response_serializer = serializers.TriggerResponseSerializer(
             instance=backend_triggers, many=True)
+
+        page = self.paginate_queryset(response_serializer.data)
+        if page is not None:
+            return self.get_paginated_response(page)
+
         return Response(response_serializer.data, headers=headers)
 
 
