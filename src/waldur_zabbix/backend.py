@@ -850,6 +850,9 @@ class ZabbixBackend(ServiceBackend):
 
         request['selectHosts'] = 1
         request['active'] = 1
+        request['expandComment'] = 1
+        request['expandDescription'] = 1
+        request['expandExpression'] = 1
 
         if 'host_id' in query:
             request['hostids'] = query['host_id']
