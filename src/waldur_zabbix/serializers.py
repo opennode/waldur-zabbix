@@ -393,6 +393,8 @@ class TriggerRequestSerializer(serializers.Serializer):
     acknowledge_status = serializers.ChoiceField(choices=models.Trigger.AcknowledgeStatus.CHOICES, required=False)
     host_name = serializers.CharField(required=False)
     host_id = serializers.CharField(required=False)
+    # Value is not a good name for the filter, but let's keep consistency with Zabbix API.
+    value = serializers.ChoiceField(choices=models.Trigger.Value.CHOICES, required=False)
 
     def validate(self, attrs):
         self._add_field_from_initial_data(attrs, 'include_events_count')

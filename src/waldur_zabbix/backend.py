@@ -883,6 +883,11 @@ class ZabbixBackend(ServiceBackend):
             if acknowledge_status in status_mapping:
                 key = status_mapping[acknowledge_status]
                 request[key] = 1
+
+        if 'value' in query:
+            request.setdefault('filter', {})
+            request['filter']['value'] = query['value']
+
         return request
 
     def get_trigger_status(self, query):
