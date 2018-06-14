@@ -179,8 +179,8 @@ class Trigger(structure_models.ServiceProperty):
         PROBLEM = 1
 
         CHOICES = (
-            OK, 'OK',
-            PROBLEM, 'Problem',
+            (OK, 'OK'),
+            (PROBLEM, 'Problem'),
         )
 
     @classmethod
