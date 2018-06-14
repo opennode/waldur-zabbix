@@ -174,6 +174,15 @@ class Trigger(structure_models.ServiceProperty):
             (ALL_EVENTS_ACKNOWLEDGED, 'All events unacknowledged'),
         )
 
+    class Value:
+        OK = 0
+        PROBLEM = 1
+
+        CHOICES = (
+            (OK, 'OK'),
+            (PROBLEM, 'Problem'),
+        )
+
     @classmethod
     def get_url_name(cls):
         return 'zabbix-trigger'
