@@ -850,6 +850,9 @@ class ZabbixBackend(ServiceBackend):
 
         request['selectHosts'] = 1
         request['active'] = 1
+        request['expandComment'] = 1
+        request['expandDescription'] = 1
+        request['expandExpression'] = 1
 
         if 'host_id' in query:
             request['hostids'] = query['host_id']
@@ -880,6 +883,11 @@ class ZabbixBackend(ServiceBackend):
             if acknowledge_status in status_mapping:
                 key = status_mapping[acknowledge_status]
                 request[key] = 1
+
+        if 'value' in query:
+            request.setdefault('filter', {})
+            request['filter']['value'] = query['value']
+
         return request
 
     def get_trigger_status(self, query):

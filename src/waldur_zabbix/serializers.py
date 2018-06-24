@@ -82,7 +82,10 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
 
     service_project_link = serializers.HyperlinkedRelatedField(
         view_name='zabbix-spl-detail',
-        queryset=models.ZabbixServiceProjectLink.objects.all())
+        queryset=models.ZabbixServiceProjectLink.objects.all(),
+        allow_null=True,
+        required=False,
+    )
 
     # visible name could be populated from scope, so we need to mark it as not required
     visible_name = serializers.CharField(required=False, max_length=models.Host.VISIBLE_NAME_MAX_LENGTH)
@@ -113,6 +116,8 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
         return super(HostSerializer, self).get_resource_fields() + ['scope']
 
     def validate(self, attrs):
+        attrs = super(HostSerializer, self).validate(attrs)
+
         # model validation
         if self.instance is not None:
             for name, value in attrs.items():
@@ -217,7 +222,10 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
 
     service_project_link = serializers.HyperlinkedRelatedField(
         view_name='zabbix-spl-detail',
-        queryset=models.ZabbixServiceProjectLink.objects.all())
+        queryset=models.ZabbixServiceProjectLink.objects.all(),
+        allow_null=True,
+        required=False,
+    )
 
     host = serializers.HyperlinkedRelatedField(
         view_name='zabbix-host-detail',
@@ -256,6 +264,8 @@ class ITServiceSerializer(structure_serializers.BaseResourceSerializer):
         return self.context[key].get(itservice.id)
 
     def validate(self, attrs):
+        attrs = super(ITServiceSerializer, self).validate(attrs)
+
         host = attrs.get('host')
         if host:
             trigger = attrs['trigger']
@@ -393,6 +403,8 @@ class TriggerRequestSerializer(serializers.Serializer):
     acknowledge_status = serializers.ChoiceField(choices=models.Trigger.AcknowledgeStatus.CHOICES, required=False)
     host_name = serializers.CharField(required=False)
     host_id = serializers.CharField(required=False)
+    # Value is not a good name for the filter, but let's keep consistency with Zabbix API.
+    value = serializers.ChoiceField(choices=models.Trigger.Value.CHOICES, required=False)
 
     def validate(self, attrs):
         self._add_field_from_initial_data(attrs, 'include_events_count')
