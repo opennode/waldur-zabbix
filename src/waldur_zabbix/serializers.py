@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers, exceptions
 
-from waldur_core.core.fields import MappedChoiceField, JsonField
+from waldur_core.core.fields import MappedChoiceField
 from waldur_core.core.serializers import GenericRelatedField, HyperlinkedRelatedModelSerializer
 from waldur_core.core.utils import datetime_to_timestamp, pwgen
 from waldur_core.monitoring.utils import get_period
@@ -99,7 +99,7 @@ class HostSerializer(structure_serializers.BaseResourceSerializer):
     )
     interface_ip = serializers.IPAddressField(allow_blank=True, required=False, write_only=True,
                                               help_text='IP of host interface.')
-    interface_parameters = JsonField(read_only=True)
+    interface_parameters = serializers.JSONField(read_only=True)
 
     class Meta(structure_serializers.BaseResourceSerializer.Meta):
         model = models.Host
